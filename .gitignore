@@ -9,3 +9,6 @@ __pycache__/
 
 # Bỏ qua file chứa mật khẩu (nếu có sau này)
 .env
+
+#Bỏ qua file docker
+docker-compose.yml
