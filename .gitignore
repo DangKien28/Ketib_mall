@@ -1,0 +1,40 @@
+# =========================
+# 1. BẢO MẬT (Cực kỳ quan trọng)
+# =========================
+# Bỏ qua tất cả các file chứa biến môi trường/mật khẩu ở bất kỳ thư mục nào
+.env
+*.env
+.env.*
+!.env.example # (Ngoại trừ file .env.example dùng để làm mẫu)
+
+# =========================
+# 2. MÔI TRƯỜNG ẢO PYTHON
+# =========================
+# Bỏ qua các thư mục chứa thư viện nặng của Python
+venv/
+env/
+.venv/
+KetibMall_App/venv/
+KetibMall_Inventory/venv/
+
+# =========================
+# 3. FILE RÁC CỦA PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# =========================
+# 4. CẤU HÌNH IDE & HỆ ĐIỀU HÀNH
+# =========================
+# Visual Studio Code
+.vscode/
+# MacOS (nếu sau này có ai dùng Mac tải code)
+.DS_Store
+
+# =========================
+# 5. DỮ LIỆU DATABASE (Nếu sau này có mount ra ngoài)
+# =========================
+pgdata/
+rabbitmq_data/

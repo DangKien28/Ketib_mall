@@ -1,0 +1,30 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ketibmall_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+
+  db_app:
+    image: postgres:15-alpine
+    container_name: ketibmall_db_app
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ketib_app_db
+
+  db_inventory:
+    image: postgres:15-alpine
+    container_name: ketibmall_db_inventory
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ketib_inventory_db
