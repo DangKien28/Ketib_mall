@@ -1,7 +1,7 @@
 # File: KetibMall_App/src/models/models.py
 
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
-from database import Base, engine  # Import từ file database.py vừa tạo
+from src.models.database import Base, engine
 
 class User(Base):
     __tablename__ = "users"
