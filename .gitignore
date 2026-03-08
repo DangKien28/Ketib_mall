@@ -1,0 +1,11 @@
+# Bỏ qua môi trường ảo Python
+venv/
+KetibMall_App/venv/
+KetibMall_Inventory/venv/
+
+# Bỏ qua các file rác của Python
+__pycache__/
+*.pyc
+
+# Bỏ qua file chứa mật khẩu (nếu có sau này)
+.env

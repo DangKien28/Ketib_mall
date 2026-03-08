@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # 1. TRẠM TRUNG CHUYỂN TIN NHẮN
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ketibmall_rabbitmq
+    ports:
+      - "5672:5672"   # Cổng để code Python kết nối vào gửi/nhận tin
+      - "15672:15672" # Cổng giao diện Web để bạn theo dõi tin nhắn (Rất ăn điểm khi báo cáo)
+    environment:
+      RABBITMQ_DEFAULT_USER: KetibAdmin
+      RABBITMQ_DEFAULT_PASS: Dtk.281005
+
+  # 2. DATABASE CHO WEB TMĐT (Khối 1)
+  db_app:
+    image: postgres:15-alpine
+    container_name: ketibmall_db_app
+    ports:
+      - "5432:5432"   # Cổng để KetibMall_App kết nối vào
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: Dtk.281005
+      POSTGRES_DB: ketib_app_db
+
+  # 3. DATABASE CHO HỆ THỐNG KHO (Khối 2)
+  db_inventory:
+    image: postgres:15-alpine
+    container_name: ketibmall_db_inventory
+    ports:
+      - "5433:5432"   # Chú ý: Dùng cổng 5433 để không bị trùng với DB trên
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: Dtk.281005
+      POSTGRES_DB: ketib_inventory_db
