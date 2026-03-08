@@ -1,24 +1,21 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
-from database import Base, engine 
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+import datetime
 
-class InventoryItem(Base):
-    __tablename__ = "inventory_items"
-    
-    # Mã sản phẩm khớp với bảng products bên App (VD: 'SP01')
-    product_id = Column(String(20), primary_key=True, index=True) 
-    actual_stock = Column(Integer, nullable=False, default=0)
-    warehouse_location = Column(String(50), nullable=True) # Vị trí kệ hàng
+Base = declarative_base()
 
-class StockTransaction(Base):
-    __tablename__ = "stock_transactions"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(String(20), ForeignKey("inventory_items.product_id"))
-    change_amount = Column(Integer, nullable=False) # VD: +50 (nhập), -2 (xuất)
-    action_type = Column(String(50), nullable=False) # VD: 'RESTOCK', 'ORDER_RESERVE'
-    reference_order_id = Column(String(20), nullable=True) # Lưu lại mã đơn hàng để đối soát
+# Bảng tồn kho thực tế
+class Inventory(Base):
+    __tablename__ = "inventory"
+    product_id = Column(String, primary_key=True)
+    actual_stock = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=datetime.datetime.utcnow)
 
-if __name__ == "__main__":
-    print("Đang kết nối đến ketib_inventory_db (Port 5433) và tạo bảng...")
-    Base.metadata.create_all(bind=engine)
-    print("Thành công! Hãy mở Database Client kiểm tra DB Kho.")
+# Bảng lịch sử nhập/xuất kho
+class InventoryLog(Base):
+    __tablename__ = "inventory_logs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    product_id = Column(String)
+    change_amount = Column(Integer) # Số dương là nhập, số âm là xuất
+    reason = Column(String) # Ví dụ: "Import", "Order ORD-123"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
