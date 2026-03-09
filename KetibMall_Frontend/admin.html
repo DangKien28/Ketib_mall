@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Ketib Inventory - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primary: '#1337ec' }, borderRadius: { 'custom': '8px' } } } }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+            <div class="p-6 border-b border-gray-100">
+                <h1 class="text-xl font-bold text-primary flex items-center gap-2">Ketib Inventory</h1>
+            </div>
+            <nav class="flex-1 p-4 space-y-1">
+                <a class="flex items-center p-3 bg-blue-50 text-primary rounded-lg font-semibold" href="#">📊 Dashboard</a>
+                <a class="flex items-center p-3 text-gray-600 hover:bg-gray-100 rounded-lg" href="#">📦 Inventory</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto">
+            <header class="bg-white border-b border-gray-200 h-16 flex items-center px-8 sticky top-0 z-10">
+                <h2 class="text-lg font-semibold">Inventory Control Center</h2>
+            </header>
+
+            <div class="p-8 max-w-7xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-custom border border-gray-200 shadow-sm">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Total SKUs</p>
+                        <p id="total-items" class="text-2xl font-bold mt-1">--</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-custom border border-gray-200 shadow-sm">
+                        <p class="text-xs text-gray-500 uppercase font-bold">System Status</p>
+                        <p id="system-status" class="text-2xl font-bold mt-1 text-green-500">Online</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <section class="lg:col-span-2 space-y-6">
+                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 flex justify-between">
+                                <h3 class="font-bold text-gray-700">Actual Warehouse Stock</h3>
+                                <button onclick="loadInventory()" class="text-primary text-sm hover:underline">Refresh</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50 text-xs text-gray-500 uppercase font-semibold">
+                                        <tr>
+                                            <th class="px-6 py-3">Product ID</th>
+                                            <th class="px-6 py-3 text-center">Actual Stock</th>
+                                            <th class="px-6 py-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-list" class="divide-y divide-gray-100 text-sm">
+                                        </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm p-6">
+                            <h3 class="font-bold text-gray-700 mb-4 text-lg">Restock Product (Import)</h3>
+                            <form id="restock-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Product ID</label>
+                                    <input id="prod-id" class="border-gray-300 rounded-custom" placeholder="e.g. SP01" type="text" required/>
+                                </div>
+                                <div class="flex flex-col gap-1">
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Add Quantity</label>
+                                    <input id="prod-qty" class="border-gray-300 rounded-custom" placeholder="0" type="number" required/>
+                                </div>
+                                <div class="flex items-end">
+                                    <button class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-2 rounded-custom transition-all" type="submit">
+                                        Submit Restock
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </section>
+
+                    <aside class="lg:col-span-1">
+                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm overflow-hidden">
+                            <div class="px-6 py-4 border-b border-gray-100 font-bold">Live Activity Log</div>
+                            <div id="activity-log" class="p-6 space-y-4 max-h-[500px] overflow-y-auto text-xs">
+                                </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/admin.js"></script>
+</body>
+</html>

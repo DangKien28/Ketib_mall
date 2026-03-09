@@ -10,14 +10,15 @@ def send_order_event(order_payload: dict):
     # Load lại môi trường
     load_dotenv() 
 
-    rabbitmq_host = os.getenv("RABBITMQ_HOST", "localhost")
-    rabbitmq_user = os.getenv("RABBITMQ_USER") # Sẽ lấy 'KetibAdmin'
+    rabbitmq_host = os.getenv("RABBITMQ_HOST")
+    rabbitmq_user = os.getenv("RABBITMQ_USER")
     rabbitmq_pass = os.getenv("RABBITMQ_PASS")
     
     try:
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
         # 1. Thiết lập kết nối đến RabbitMQ
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=rabbitmq_host)
+            pika.ConnectionParameters(host=rabbitmq_host, credentials=credentials)
         )
         channel = connection.channel()
 

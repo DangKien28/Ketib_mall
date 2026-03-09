@@ -3,31 +3,111 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: ketibmall_rabbitmq
+    restart: always
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ketib_network
 
-  # 2. DATABASE CHO WEB TMĐT (Khối 1)
+  # 2. DATABASE CHO APP (BÁN HÀNG)
   db_app:
     image: postgres:15-alpine
     container_name: ketibmall_db_app
+    restart: always
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASS}
       POSTGRES_DB: ${APP_DB_NAME}
+    networks:
+      - ketib_network
 
-  # 3. DATABASE CHO HỆ THỐNG KHO (Khối 2)
+  # 3. DATABASE CHO INVENTORY (KHO)
   db_inventory:
     image: postgres:15-alpine
     container_name: ketibmall_db_inventory
+    restart: always
     ports:
       - "5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASS}
       POSTGRES_DB: ${INVENTORY_DB_NAME}
+    networks:
+      - ketib_network
+
+  # 4. API SERVER - APP (PORT 8000)
+  app_api:
+    build: ./KetibMall_App
+    container_name: ketibmall_app_server
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_app:
+        condition: service_started
+    env_file: ./KetibMall_App/.env
+    networks:
+      - ketib_network
+
+  # 5. API SERVER - INVENTORY (PORT 8001)
+  inventory_api:
+    build: ./KetibMall_Inventory
+    container_name: ketibmall_inventory_server
+    restart: always
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_inventory:
+        condition: service_started
+    env_file: ./KetibMall_Inventory/.env
+    networks:
+      - ketib_network
+
+  # 6. WORKER XỬ LÝ ĐƠN HÀNG (BÊN INVENTORY)
+  inventory_worker:
+    build: ./KetibMall_Inventory
+    container_name: inventory_order_consumer
+    restart: always
+    command: python -m src.integration.consumer.consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_inventory:
+        condition: service_started
+    env_file: ./KetibMall_Inventory/.env
+    networks:
+      - ketib_network
+
+  # 7. WORKER ĐỒNG BỘ KHO (BÊN APP)
+  app_stock_worker:
+    build: ./KetibMall_App
+    container_name: app_stock_consumer
+    restart: always
+    command: python -m src.integration.consumer.stock_consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_app:
+        condition: service_started
+    env_file: ./KetibMall_App/.env
+    networks:
+      - ketib_network
+
+networks:
+  ketib_network:
+    driver: bridge
