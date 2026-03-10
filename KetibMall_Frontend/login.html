@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>KetibMall - Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: { "primary": "#0052FF", "background-light": "#f6f6f8", "background-dark": "#101322" },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white dark:bg-slate-900 shadow-xl rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+        <div class="p-8">
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-20 h-20 mb-4 overflow-hidden rounded-lg">
+                    <img src="http://localhost:8000/static/logo_TK.png" alt="KetibMall Logo" class="w-full h-full object-contain">
+                </div>
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">KetibMall</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-2 text-center">Welcome back! Please enter your details.</p>
+            </div>
+
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email Address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <span class="material-symbols-outlined text-lg">mail</span>
+                        </div>
+                        <input type="email" id="email" class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="name@company.com" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <span class="material-symbols-outlined text-lg">lock</span>
+                        </div>
+                        <input type="password" id="password" class="block w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center text-slate-600 dark:text-slate-400">
+                        <input type="checkbox" class="h-4 w-4 text-primary border-slate-300 rounded mr-2"> Remember me
+                    </label>
+                    <a href="#" class="font-medium text-primary hover:underline">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="w-full py-3 px-4 rounded-lg shadow-sm text-sm font-semibold text-white bg-primary hover:bg-primary/90 transition-all">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-8 text-center text-sm text-slate-600 dark:text-slate-400">
+                Don't have an account? 
+                <a href="register.html" class="font-semibold text-primary hover:underline">Sign Up</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/auth.js"></script>
+</body>
+</html>

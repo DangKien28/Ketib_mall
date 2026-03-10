@@ -1,37 +1,51 @@
-# File: KetibMall_App/src/models/models.py
-
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
-from src.models.database import Base, engine
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
+from src.models.database import Base
 
 class User(Base):
     __tablename__ = "users"
+
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), nullable=False)
-    email = Column(String(100), nullable=False)
+    # full_name: Lưu tên đầy đủ từ form đăng ký
+    full_name = Column(String(100), nullable=True)
+    # email: Dùng làm định danh duy nhất để đăng nhập
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    # username: Có thể dùng email làm username hoặc để trống (tùy chọn)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    # password: Lưu mật khẩu ĐÃ MÃ HÓA (Hashed Password), không bao giờ lưu văn bản thuần
+    password = Column(String(255), nullable=False)
+    
+    # Quan hệ với bảng đơn hàng (Nếu bạn đã có logic Order)
+    orders = relationship("Order", back_populates="owner")
 
 class Product(Base):
     __tablename__ = "products"
-    id = Column(String(20), primary_key=True, index=True) # VD: 'SP01'
+
+    id = Column(String(50), primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     price = Column(Float, nullable=False)
-    cached_stock = Column(Integer, default=0)
+    # image_url: Lưu đường dẫn ảnh chúng ta đã làm ở bước trước
     image_url = Column(String(255), nullable=True)
-    
+    # cached_stock: Lưu số lượng tồn kho để hiển thị nhanh ở trang khách hàng
+    cached_stock = Column(Integer, default=0)
+
 class Order(Base):
     __tablename__ = "orders"
-    id = Column(String(20), primary_key=True, index=True) # VD: 'ORD-999'
+
+    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    status = Column(String(20), default="PENDING")
+    total_price = Column(Float, default=0.0)
+    status = Column(String(20), default="pending")
+
+    owner = relationship("User", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order")
 
 class OrderItem(Base):
     __tablename__ = "order_items"
+
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(String(20), ForeignKey("orders.id"))
-    product_id = Column(String(20), ForeignKey("products.id"))
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    product_id = Column(String(50), ForeignKey("products.id"))
     quantity = Column(Integer, nullable=False)
 
-if __name__ == "__main__":
-    print("Đang kết nối đến ketib_app_db và tạo bảng...")
-    # Lệnh thần thánh: tự động sinh ra các bảng trong database
-    Base.metadata.create_all(bind=engine)
-    print("Thành công! Hãy mở Database Client để kiểm tra.")
+    order = relationship("Order", back_populates="items")
