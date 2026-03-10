@@ -7,91 +7,166 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     <script>
-        tailwind.config = { theme: { extend: { colors: { primary: '#1337ec' }, borderRadius: { 'custom': '8px' } } } }
+        tailwind.config = { 
+            theme: { extend: { colors: { primary: '#1337ec' }, borderRadius: { 'custom': '8px' } } } 
+        }
     </script>
+    <style>
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            color: #4b5563;
+            transition: all 0.2s;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .nav-link:hover { background-color: #f3f4f6; color: #1337ec; }
+        .nav-link.active { background-color: #eff6ff; color: #1337ec; font-weight: 600; }
+        
+        /* Điều khiển ẩn hiện các section */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+
+        /* Custom style cho phần upload ảnh */
+        .image-preview {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: #f8fafc;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans">
     <div class="flex min-h-screen">
         <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
             <div class="p-6 border-b border-gray-100">
-                <h1 class="text-xl font-bold text-primary flex items-center gap-2">Ketib Inventory</h1>
+                <h1 class="text-xl font-bold text-primary">Ketib Inventory</h1>
             </div>
             <nav class="flex-1 p-4 space-y-1">
-                <a class="flex items-center p-3 bg-blue-50 text-primary rounded-lg font-semibold" href="#">📊 Dashboard</a>
-                <a class="flex items-center p-3 text-gray-600 hover:bg-gray-100 rounded-lg" href="#">📦 Inventory</a>
+                <div id="nav-dashboard" class="nav-link active" onclick="switchSection('dashboard')">
+                    <span class="mr-3">📊</span> Dashboard
+                </div>
+                <div id="nav-inventory" class="nav-link" onclick="switchSection('inventory')">
+                    <span class="mr-3">📦</span> Inventory
+                </div>
             </nav>
         </aside>
 
         <main class="flex-1 overflow-y-auto">
             <header class="bg-white border-b border-gray-200 h-16 flex items-center px-8 sticky top-0 z-10">
-                <h2 class="text-lg font-semibold">Inventory Control Center</h2>
+                <h2 id="header-title" class="text-lg font-semibold">Dashboard Overview</h2>
             </header>
 
             <div class="p-8 max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-custom border border-gray-200 shadow-sm">
-                        <p class="text-xs text-gray-500 uppercase font-bold">Total SKUs</p>
-                        <p id="total-items" class="text-2xl font-bold mt-1">--</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-custom border border-gray-200 shadow-sm">
-                        <p class="text-xs text-gray-500 uppercase font-bold">System Status</p>
-                        <p id="system-status" class="text-2xl font-bold mt-1 text-green-500">Online</p>
-                    </div>
-                </div>
+                
+                <section id="section-dashboard" class="content-section active space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm p-6">
+                            <h3 class="font-bold text-blue-600 mb-4 text-lg">Step 1: Create Product listing</h3>
+                            <form id="create-product-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <input id="new-prod-id" class="w-full border-gray-300 rounded-custom" placeholder="ID (ví dụ: SP01)" required>
+                                    <input id="new-prod-price" type="number" step="0.01" class="w-full border-gray-300 rounded-custom" placeholder="Giá ($)" required>
+                                </div>
+                                <input id="new-prod-name" class="w-full border-gray-300 rounded-custom" placeholder="Tên sản phẩm" required>
+                                
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Hình ảnh sản phẩm</label>
+                                    <input id="new-prod-image" type="file" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="previewImage(event)">
+                                    <div id="image-preview-container" class="image-preview">
+                                        <span id="preview-placeholder" class="text-gray-400 text-xs text-center px-4">Chưa có ảnh nào được chọn. Ảnh xem trước sẽ hiện ở đây.</span>
+                                        <img id="image-preview-el" class="hidden">
+                                    </div>
+                                </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <section class="lg:col-span-2 space-y-6">
-                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b border-gray-100 flex justify-between">
-                                <h3 class="font-bold text-gray-700">Actual Warehouse Stock</h3>
-                                <button onclick="loadInventory()" class="text-primary text-sm hover:underline">Refresh</button>
-                            </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left">
-                                    <thead class="bg-gray-50 text-xs text-gray-500 uppercase font-semibold">
-                                        <tr>
-                                            <th class="px-6 py-3">Product ID</th>
-                                            <th class="px-6 py-3 text-center">Actual Stock</th>
-                                            <th class="px-6 py-3">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="inventory-list" class="divide-y divide-gray-100 text-sm">
-                                        </tbody>
-                                </table>
-                            </div>
+                                <button class="w-full bg-green-600 text-white py-3 rounded-custom font-bold hover:bg-green-700 transition-colors">
+                                    Khai báo SP (App DB)
+                                </button>
+                            </form>
                         </div>
 
                         <div class="bg-white border border-gray-200 rounded-custom shadow-sm p-6">
-                            <h3 class="font-bold text-gray-700 mb-4 text-lg">Restock Product (Import)</h3>
-                            <form id="restock-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <h3 class="font-bold text-blue-600 mb-4 text-lg">Step 2: Restock Product</h3>
+                            <form id="restock-form" class="space-y-4">
                                 <div class="flex flex-col gap-1">
-                                    <label class="text-xs font-bold text-gray-500 uppercase">Product ID</label>
-                                    <input id="prod-id" class="border-gray-300 rounded-custom" placeholder="e.g. SP01" type="text" required/>
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Mã sản phẩm</label>
+                                    <input id="prod-id" class="w-full border-gray-300 rounded-custom" placeholder="Nhập ID để thêm hàng" required>
                                 </div>
                                 <div class="flex flex-col gap-1">
-                                    <label class="text-xs font-bold text-gray-500 uppercase">Add Quantity</label>
-                                    <input id="prod-qty" class="border-gray-300 rounded-custom" placeholder="0" type="number" required/>
+                                    <label class="text-xs font-bold text-gray-500 uppercase">Số lượng nhập</label>
+                                    <input id="prod-qty" type="number" class="w-full border-gray-300 rounded-custom" placeholder="Số lượng thêm" required>
                                 </div>
-                                <div class="flex items-end">
-                                    <button class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-2 rounded-custom transition-all" type="submit">
-                                        Submit Restock
-                                    </button>
-                                </div>
+                                <button class="w-full bg-primary text-white py-3 rounded-custom font-bold hover:bg-blue-700 transition-colors">
+                                    Cập nhật kho (Inventory DB)
+                                </button>
                             </form>
                         </div>
-                    </section>
+                    </div>
+                </section>
 
-                    <aside class="lg:col-span-1">
-                        <div class="bg-white border border-gray-200 rounded-custom shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b border-gray-100 font-bold">Live Activity Log</div>
-                            <div id="activity-log" class="p-6 space-y-4 max-h-[500px] overflow-y-auto text-xs">
-                                </div>
+                <section id="section-inventory" class="content-section space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-xl text-blue-600">Inventory Status</h3>
+                        <button onclick="loadInventoryList()" class="text-sm bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium">
+                            🔄 Refresh Data
+                        </button>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-custom shadow-sm overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
+                                <tr>
+                                    <th class="px-6 py-4">ID</th>
+                                    <th class="px-6 py-4">Tên sản phẩm</th>
+                                    <th class="px-6 py-4 text-center">Tồn kho thực</th>
+                                    <th class="px-6 py-4">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-list-table" class="divide-y divide-gray-100">
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="mt-8 bg-white border border-gray-200 rounded-custom p-4 shadow-sm">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        Live System Logs
+                    </h4>
+                    <div id="activity-log" class="text-xs font-mono space-y-1 max-h-32 overflow-y-auto bg-slate-50 p-3 rounded border border-slate-100">
                         </div>
-                    </aside>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const output = document.getElementById('image-preview-el');
+                const placeholder = document.getElementById('preview-placeholder');
+                output.src = reader.result;
+                output.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+            if(event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        }
+    </script>
+    
     <script src="js/admin.js"></script>
 </body>
 </html>

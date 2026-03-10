@@ -15,7 +15,8 @@ class Product(Base):
     name = Column(String(100), nullable=False)
     price = Column(Float, nullable=False)
     cached_stock = Column(Integer, default=0)
-
+    image_url = Column(String(255), nullable=True)
+    
 class Order(Base):
     __tablename__ = "orders"
     id = Column(String(20), primary_key=True, index=True) # VD: 'ORD-999'

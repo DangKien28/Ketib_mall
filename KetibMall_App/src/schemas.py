@@ -1,7 +1,7 @@
 # File: KetibMall_App/src/schemas.py
 
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 # DTO cho Sản phẩm
 class ProductCreate(BaseModel):
@@ -9,6 +9,7 @@ class ProductCreate(BaseModel):
     name: str
     price: float
     cached_stock: int
+    image_url: Optional[str] = None
 
 # DTO cho Đơn hàng
 class OrderItemCreate(BaseModel):
