@@ -21,7 +21,12 @@ models.Base.metadata.create_all(bind=database.engine)
 # Cấu hình CORS (Cho phép Frontend truy cập)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://127.0.0.1:5500", # Cổng của Live Server bạn đang dùng
+        "http://localhost:5500",
+        "*"
+        ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
