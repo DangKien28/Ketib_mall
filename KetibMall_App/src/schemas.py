@@ -1,6 +1,6 @@
 # File: KetibMall_App/src/schemas.py
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
 # DTO cho Sản phẩm
@@ -19,3 +19,12 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     user_id: int
     items: List[OrderItemCreate]
+
+class UserCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str

@@ -6,16 +6,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    # full_name: Lưu tên đầy đủ từ form đăng ký
     full_name = Column(String(100), nullable=True)
-    # email: Dùng làm định danh duy nhất để đăng nhập
     email = Column(String(100), unique=True, index=True, nullable=False)
-    # username: Có thể dùng email làm username hoặc để trống (tùy chọn)
-    username = Column(String(100), unique=True, index=True, nullable=False)
-    # password: Lưu mật khẩu ĐÃ MÃ HÓA (Hashed Password), không bao giờ lưu văn bản thuần
+    username = Column(String, unique=True, index=True, nullable=True)
     password = Column(String(255), nullable=False)
-    
-    # Quan hệ với bảng đơn hàng (Nếu bạn đã có logic Order)
     orders = relationship("Order", back_populates="owner")
 
 class Product(Base):
@@ -24,9 +18,7 @@ class Product(Base):
     id = Column(String(50), primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     price = Column(Float, nullable=False)
-    # image_url: Lưu đường dẫn ảnh chúng ta đã làm ở bước trước
     image_url = Column(String(255), nullable=True)
-    # cached_stock: Lưu số lượng tồn kho để hiển thị nhanh ở trang khách hàng
     cached_stock = Column(Integer, default=0)
 
 class Order(Base):
