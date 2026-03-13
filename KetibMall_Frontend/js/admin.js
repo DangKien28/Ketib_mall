@@ -1,161 +1,201 @@
-const API_APP = "http://localhost:8000/api";
-const API_INVENTORY = "http://localhost:8001/api/inventory";
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. KIỂM TRA QUYỀN TRUY CẬP (Giữ nguyên)
+    const authMessageDiv = document.getElementById('auth-message');
+    const adminContentDiv = document.getElementById('admin-content');
 
-/**
- * 1. Logic chuyển đổi giao diện (Tabs)
- */
-function switchSection(sectionName) {
-    // Ẩn tất cả các section và hiện section được chọn
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.getElementById(`section-${sectionName}`).classList.add('active');
-
-    // Cập nhật trạng thái menu bên trái
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    document.getElementById(`nav-${sectionName}`).classList.add('active');
-
-    // Cập nhật tiêu đề Header
-    const title = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
-    document.getElementById('header-title').innerText = `${title} Overview`;
-
-    // Tự động tải danh sách nếu chuyển sang tab Inventory
-    if (sectionName === 'inventory') {
-        loadInventoryList();
-    }
-}
-
-/**
- * 2. Logic nghiệp vụ Dashboard (Tạo SP & Nhập kho)
- */
-
-// Form tạo sản phẩm mới (Hỗ trợ Upload Ảnh qua FormData)
-document.getElementById('create-product-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
     
-    // Sử dụng FormData để có thể gửi tệp tin (binary)
-    const formData = new FormData();
-    formData.append('id', document.getElementById('new-prod-id').value);
-    formData.append('name', document.getElementById('new-prod-name').value);
-    formData.append('price', document.getElementById('new-prod-price').value);
+    if (!token || !userStr) {
+        authMessageDiv.innerHTML = `
+            <div class="bg-white p-8 rounded-lg shadow-md text-center max-w-md w-full mx-4">
+                <svg class="w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h2 class="text-2xl font-bold mb-2 text-gray-800">Truy cập bị từ chối</h2>
+                <p class="mb-6 text-gray-600">Vui lòng đăng nhập để tiếp tục!</p>
+                <a href="login.html" class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-2 rounded transition-colors">Đăng nhập</a>
+            </div>
+        `;
+        authMessageDiv.classList.remove('hidden');
+        return;
+    }
+
+    const user = JSON.parse(userStr);
     
-    const imageFile = document.getElementById('new-prod-image').files[0];
-    if (imageFile) {
-        formData.append('image', imageFile);
+    if (user.role !== 'admin') {
+        authMessageDiv.innerHTML = `
+            <div class="bg-white p-8 rounded-lg shadow-md text-center max-w-md w-full mx-4">
+                <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                <h2 class="text-2xl font-bold mb-2 text-gray-800">Lỗi 403</h2>
+                <p class="mb-6 text-gray-600">Bạn không có quyền truy cập vào trang Quản trị.</p>
+                <a href="app.html" class="inline-block bg-red-500 hover:bg-red-600 text-white font-semibold px-8 py-2 rounded transition-colors">Về trang chủ</a>
+            </div>
+        `;
+        authMessageDiv.classList.remove('hidden');
+        return;
     }
 
-    try {
-        const response = await fetch(`${API_APP}/products/`, {
-            method: 'POST',
-            // Lưu ý: Không đặt Content-Type khi gửi FormData, trình duyệt sẽ tự xử lý
-            body: formData
-        });
-
-        if (response.ok) {
-            addLog(`[APP] Khai báo thành công sản phẩm: ${document.getElementById('new-prod-id').value}`);
-            e.target.reset();
-            // Reset ảnh xem trước
-            document.getElementById('image-preview-el').classList.add('hidden');
-            document.getElementById('preview-placeholder').classList.remove('hidden');
-            // Gợi ý ID sang form nhập kho
-            document.getElementById('prod-id').value = formData.get('id');
-        } else {
-            const err = await response.json();
-            addLog(`[LỖI APP] ${err.detail || 'Không thể tạo sản phẩm'}`, true);
-        }
-    } catch (err) {
-        addLog("CRITICAL: Lỗi kết nối tới App Service (Port 8000)", true);
+    // Nếu là Admin -> Hiện giao diện
+    adminContentDiv.classList.remove('hidden');
+    
+    // Hiện tên Admin
+    const userInfoDiv = document.getElementById('user-info');
+    if (userInfoDiv) {
+        userInfoDiv.innerHTML = `Xin chào Admin: <span class="text-blue-600">${user.full_name || user.email}</span>`;
     }
+
+    loadProducts();
 });
 
-// Form nhập kho (Inventory Service)
-document.getElementById('restock-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const productId = document.getElementById('prod-id').value;
-    const quantity = parseInt(document.getElementById('prod-qty').value);
-
-    try {
-        const response = await fetch(`${API_INVENTORY}/import`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: productId, quantity: quantity })
-        });
-
-        if (response.ok) {
-            addLog(`[KHO] Nhập thêm ${quantity} đơn vị cho mã ${productId} thành công.`);
-            e.target.reset();
-        } else {
-            addLog(`[LỖI KHO] Không thể nhập hàng cho mã ${productId}`, true);
-        }
-    } catch (err) {
-        addLog("CRITICAL: Lỗi kết nối tới Inventory Service (Port 8001)", true);
-    }
-});
-
-/**
- * 3. Logic nghiệp vụ Inventory (Xem danh sách)
- */
-async function loadInventoryList() {
-    const tableBody = document.getElementById('inventory-list-table');
-    tableBody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-400 italic">Đang tải dữ liệu từ hệ thống...</td></tr>';
-
-    try {
-        // Lấy danh mục sản phẩm từ App Service
-        const resApp = await fetch(`${API_APP}/products/`);
-        const products = await resApp.json();
-
-        if (products.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-400">Hệ thống chưa có sản phẩm nào.</td></tr>';
-            return;
-        }
-
-        let html = '';
-        for (const p of products) {
-            let stock = 0;
-            try {
-                // Lấy tồn kho thực tế từ Inventory Service
-                const resInv = await fetch(`${API_INVENTORY}/status/${p.id}`);
-                const invData = await resInv.json();
-                stock = invData.stock ?? 0;
-            } catch (e) { console.error(`Không lấy được stock cho ${p.id}`); }
-
-            html += `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 font-bold text-primary">${p.id}</td>
-                    <td class="px-6 py-4">${p.name}</td>
-                    <td class="px-6 py-4 text-center font-mono font-bold text-lg">${stock}</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 ${stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} rounded-full text-[10px] uppercase font-bold">
-                            ${stock > 0 ? 'In Warehouse' : 'Out of Stock'}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        }
-        tableBody.innerHTML = html;
-    } catch (err) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-red-500 font-bold">Lỗi đồng bộ dữ liệu giữa các Service.</td></tr>';
-    }
-}
-
-/**
- * 4. Tiện ích Log
- */
+// ==========================================
+// THÊM MỚI: HÀM GHI LOG HỆ THỐNG
+// ==========================================
 function addLog(message, isError = false) {
     const logContainer = document.getElementById('activity-log');
+    if (!logContainer) return;
     const logItem = document.createElement('div');
     const time = new Date().toLocaleTimeString();
     
     logItem.className = isError ? 'text-red-500 font-semibold' : 'text-green-600';
     logItem.innerHTML = `<span class="text-gray-400">[${time}]</span> ${message}`;
     
-    logContainer.prepend(logItem);
+    logContainer.prepend(logItem); // Đẩy log mới nhất lên đầu
 }
 
-// Khởi tạo trạng thái ban đầu
-document.addEventListener('DOMContentLoaded', () => {
-    switchSection('dashboard');
-});
+// ==========================================
+// CẬP NHẬT: HÀM LOAD DATA (Kết hợp App + Inventory)
+// ==========================================
+async function loadProducts() {
+    const tbody = document.getElementById('product-list');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Đang tải dữ liệu...</td></tr>';
+
+    try {
+        // 1. Lấy danh sách sản phẩm từ App
+        const resApp = await fetch('http://localhost:8000/api/products/');
+        const products = await resApp.json();
+
+        if (products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        // 2. Duyệt từng sản phẩm và gọi sang Inventory lấy tồn kho thực
+        for (const p of products) {
+            let actualStock = 0;
+            try {
+                const resInv = await fetch(`http://localhost:8001/api/inventory/status/${p.id}`);
+                const invData = await resInv.json();
+                actualStock = invData.stock ?? 0;
+            } catch (e) { 
+                console.error(`Không lấy được stock cho ${p.id}`); 
+            }
+
+            html += `
+                <tr class="hover:bg-slate-50 transition-colors border-b">
+                    <td class="px-6 py-4 font-bold text-primary">${p.id}</td>
+                    <td class="px-6 py-4">${p.name}</td>
+                    <td class="px-6 py-4">${p.price.toLocaleString()}đ</td>
+                    <td class="px-6 py-4 text-center font-mono font-bold text-lg ${actualStock > 0 ? 'text-green-600' : 'text-red-500'}">
+                        ${actualStock}
+                    </td>
+                    <td class="px-6 py-4">
+                        ${p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 object-cover rounded shadow-sm">` : '<span class="text-xs text-gray-400">Trống</span>'}
+                    </td>
+                </tr>
+            `;
+        }
+        tbody.innerHTML = html;
+        addLog("[HỆ THỐNG] Đã làm mới dữ liệu Bảng điều khiển.");
+    } catch (error) {
+        console.error('Lỗi tải sản phẩm:', error);
+        addLog("Lỗi đồng bộ dữ liệu giữa các Service.", true);
+    }
+}
+
+// ==========================================
+// FORM 1: THÊM SẢN PHẨM
+// ==========================================
+const productForm = document.getElementById('product-form');
+if (productForm) {
+    productForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const token = localStorage.getItem('token');
+        const prodId = document.getElementById('product_id').value;
+        const formData = new FormData();
+        formData.append('id', prodId);
+        formData.append('name', document.getElementById('product_name').value);
+        formData.append('price', document.getElementById('product_price').value);
+        
+        const imageFile = document.getElementById('product_image').files[0];
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        try {
+            const response = await fetch('http://localhost:8000/api/products/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                addLog(`[APP] Khai báo thành công sản phẩm mới: ${prodId}`);
+                loadProducts(); // Tự động làm mới bảng
+                productForm.reset();
+                // Gợi ý ID sang ô nhập kho
+                document.getElementById('import_product_id').value = prodId;
+                
+                // Reset ảnh xem trước
+                document.getElementById('image-preview-el').classList.add('hidden');
+                document.getElementById('preview-placeholder').classList.remove('hidden');
+            } else {
+                addLog(`[LỖI APP] ${data.detail || 'Không thể tạo sản phẩm'}`, true);
+            }
+        } catch (error) {
+            addLog("CRITICAL: Lỗi kết nối tới App Service (Port 8000)", true);
+        }
+    });
+}
+
+// ==========================================
+// FORM 2: NHẬP KHO
+// ==========================================
+const importForm = document.getElementById('import-form');
+if (importForm) {
+    importForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const token = localStorage.getItem('token');
+        const productId = document.getElementById('import_product_id').value;
+        const quantity = document.getElementById('import_quantity').value;
+
+        try {
+            const response = await fetch('http://localhost:8001/api/inventory/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ product_id: productId, quantity: parseInt(quantity) })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                addLog(`[KHO] Nhập thêm ${quantity} đơn vị cho mã ${productId} thành công.`);
+                importForm.reset();
+                
+                // Đợi 1 giây để RabbitMQ chạy xong mới lấy dữ liệu hiển thị cho chắc chắn
+                setTimeout(() => {
+                    loadProducts(); 
+                }, 1000); 
+            } else {
+                addLog(`[LỖI KHO] Không thể nhập hàng cho mã ${productId}`, true);
+            }
+        } catch (error) {
+            addLog("CRITICAL: Lỗi kết nối tới Inventory Service (Port 8001)", true);
+        }
+    });
+}

@@ -29,6 +29,11 @@
                 <img src="http://localhost:8000/static/logo_TK.png" alt="Logo" class="h-9 w-auto">
                 <span class="text-xl font-bold">Ketib<span class="text-primary">Mall</span></span>
             </div>
+
+            <div class="flex items-center gap-4 ml-auto">
+                <div id="user-info" class="text-sm font-medium text-gray-700"></div>
+                <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">Đăng xuất</button>
+            </div>
             
             <div class="flex items-center gap-6">
                 <div id="user-display" class="flex items-center gap-4"></div>
@@ -84,5 +89,6 @@
         }
     </script>
     <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
 </body>
 </html>

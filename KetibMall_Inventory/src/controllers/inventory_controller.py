@@ -4,14 +4,22 @@ from src.models import database, models
 from pydantic import BaseModel
 from src.integration.publisher.publisher import send_stock_update 
 
+# THÊM MỚI: Import Trạm kiểm soát Admin
+from src.dependencies import get_admin_user
+
 router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
 
 class StockUpdate(BaseModel):
     product_id: str
     quantity: int
 
+# THÊM MỚI: Gắn dependency get_admin_user vào API Nhập kho
 @router.post("/import")
-def import_stock(data: StockUpdate, db: Session = Depends(database.get_db)):
+def import_stock(
+    data: StockUpdate, 
+    db: Session = Depends(database.get_db),
+    admin_info: dict = Depends(get_admin_user) # Trạm kiểm tra Token
+):
     # 1. Cập nhật hoặc tạo mới tồn kho trong Database của Inventory
     item = db.query(models.Inventory).filter(models.Inventory.product_id == data.product_id).first()
     if item:
@@ -21,11 +29,12 @@ def import_stock(data: StockUpdate, db: Session = Depends(database.get_db)):
         item = models.Inventory(product_id=data.product_id, actual_stock=data.quantity)
         db.add(item)
     
-    # 2. Ghi log lịch sử nhập hàng
+    # 2. Ghi log lịch sử nhập hàng (Bạn có thể lấy email từ admin_info để ghi log người nhập)
+    admin_email = admin_info.get("sub", "Unknown Admin")
     log = models.InventoryLog(
         product_id=data.product_id, 
         change_amount=data.quantity, 
-        reason="Nhập hàng thủ công qua API"
+        reason=f"Nhập hàng thủ công qua API bởi: {admin_email}"
     )
     db.add(log)
     
@@ -47,6 +56,7 @@ def import_stock(data: StockUpdate, db: Session = Depends(database.get_db)):
         "sync_status": sync_status
     }
 
+# API Get status giữ nguyên (ai cũng xem được tồn kho để hiển thị)
 @router.get("/status/{product_id}")
 def check_stock(product_id: str, db: Session = Depends(database.get_db)):
     item = db.query(models.Inventory).filter(models.Inventory.product_id == product_id).first()

@@ -31,7 +31,7 @@
             <header class="flex flex-col items-center pt-10 pb-6 px-10">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="size-10 overflow-hidden rounded-lg">
-                        <img src="http://localhost:8000/static/logo_TK.png" alt="Logo" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/40/1337ec/FFFFFF?text=K'">
+                        <img src="http://localhost:8000/static/logo_TK.png" alt="Logo" class="w-full h-full object-contain">
                     </div>
                     <h2 class="text-2xl font-bold tracking-tight">KetibMall</h2>
                 </div>
@@ -44,7 +44,7 @@
                     <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Full Name</label>
                     <div class="relative flex items-center">
                         <span class="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none">person</span>
-                        <input id="reg-name" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="John Doe" type="text" required/>
+                        <input id="full_name" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="John Doe" type="text" required/>
                     </div>
                 </div>
 
@@ -52,7 +52,7 @@
                     <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Email Address</label>
                     <div class="relative flex items-center">
                         <span class="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none">mail</span>
-                        <input id="reg-email" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="name@example.com" type="email" required/>
+                        <input id="email" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="name@example.com" type="email" required/>
                     </div>
                 </div>
 
@@ -61,14 +61,14 @@
                         <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Password</label>
                         <div class="relative flex items-center">
                             <span class="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none">lock</span>
-                            <input id="reg-password" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="••••••••" type="password" required/>
+                            <input id="password" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="••••••••" type="password" required/>
                         </div>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Confirm</label>
                         <div class="relative flex items-center">
                             <span class="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none">shield_lock</span>
-                            <input id="reg-confirm" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="••••••••" type="password" required/>
+                            <input id="confirm" class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all" placeholder="••••••••" type="password" required/>
                         </div>
                     </div>
                 </div>

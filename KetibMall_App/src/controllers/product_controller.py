@@ -1,18 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form # <--- THÊM IMPORT
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from src.models import database, models
 import shutil
 import os
 
+# THÊM MỚI: Import trạm kiểm soát Admin
+from src.dependencies import get_admin_user
+
 router = APIRouter(prefix="/api/products", tags=["Products"])
 
 @router.post("/")
 async def create_product(
-    id: str = Form(...),            # Nhận dữ liệu từ Form thay vì JSON
+    id: str = Form(...),
     name: str = Form(...),
     price: float = Form(...),
-    image: UploadFile = File(None), # Nhận file ảnh (không bắt buộc)
-    db: Session = Depends(database.get_db)
+    image: UploadFile = File(None),
+    db: Session = Depends(database.get_db),
+    # THÊM MỚI: Đặt trạm kiểm soát tại đây. Chỉ Admin mới gọi được API này.
+    admin_user: models.User = Depends(get_admin_user) 
 ):
     # 1. Kiểm tra trùng mã
     db_product = db.query(models.Product).filter(models.Product.id == id).first()
@@ -25,7 +30,6 @@ async def create_product(
         file_location = f"static/uploads/{id}_{image.filename}"
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
-        # Tạo URL đầy đủ để Frontend truy cập
         image_url = f"http://localhost:8000/{file_location}"
 
     # 3. Lưu vào Database
@@ -42,7 +46,7 @@ async def create_product(
     
     return {"message": "Thêm sản phẩm kèm ảnh thành công", "data": new_product}
 
-# API Get giữ nguyên
+# API Get giữ nguyên, vì ai cũng có quyền xem sản phẩm (không gắn trạm kiểm soát)
 @router.get("/")
 def get_products(db: Session = Depends(database.get_db)):
     return db.query(models.Product).all()

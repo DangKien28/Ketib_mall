@@ -5,26 +5,31 @@ from src.models import database, models
 from src.schemas import OrderCreate
 from src.integration.publisher.publisher import send_order_event
 
+# THÊM MỚI: Import trạm kiểm soát Đăng nhập
+from src.dependencies import get_current_user
+
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def create_order(order: OrderCreate, db: Session = Depends(database.get_db)):
-    # 1. Kiểm tra User có tồn tại thực sự không
-    db_user = db.query(models.User).filter(models.User.id == order.user_id).first()
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="User không hợp lệ. Vui lòng đăng nhập lại."
-        )
+def create_order(
+    order: OrderCreate, 
+    db: Session = Depends(database.get_db),
+    # THÊM MỚI: Đặt trạm kiểm soát. Bắt buộc phải có Token hợp lệ.
+    current_user: models.User = Depends(get_current_user) 
+):
+    # CHỈNH SỬA: Không cần kiểm tra User từ order.user_id nữa. 
+    # Ta dùng luôn current_user.id được lấy ra một cách an toàn từ Token.
 
-    # 2. Tạo ID đơn hàng
+    # 1. Tạo ID đơn hàng
     order_id = f"ORD-{str(uuid.uuid4())[:5].upper()}"
-    new_order = models.Order(id=order_id, user_id=order.user_id, status="PENDING")
+    
+    # Sử dụng current_user.id làm chủ nhân đơn hàng
+    new_order = models.Order(id=order_id, user_id=current_user.id, status="PENDING")
     db.add(new_order)
 
     items_for_mq = []
 
-    # 3. Duyệt sản phẩm
+    # 2. Duyệt sản phẩm
     for item in order.items:
         product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
         
@@ -45,7 +50,7 @@ def create_order(order: OrderCreate, db: Session = Depends(database.get_db)):
 
     try:
         db.commit()
-        # 4. Gửi tín hiệu sang RabbitMQ cho Inventory
+        # 3. Gửi tín hiệu sang RabbitMQ cho Inventory
         send_order_event({"order_id": order_id, "items": items_for_mq})
     except Exception as e:
         db.rollback()
