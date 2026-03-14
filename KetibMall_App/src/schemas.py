@@ -4,17 +4,20 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
 # ==========================================
-# 1. DTO CHO SẢN PHẨM & ĐƠN HÀNG
+# 1. DTO CHO SẢN PHẨM & BIẾN THỂ (CẬP NHẬT)
 # ==========================================
+class ProductVariantCreate(BaseModel):
+    size: str
+    color: str
+    price: float
+
 class ProductCreate(BaseModel):
     id: str
     name: str
-    price: float
-    cached_stock: int
-    image_url: Optional[str] = None
+    variants: List[ProductVariantCreate] # Nhận danh sách biến thể
 
 class OrderItemCreate(BaseModel):
-    product_id: str
+    variant_id: str # Đổi từ product_id thành variant_id
     quantity: int
 
 class OrderCreate(BaseModel):
@@ -22,20 +25,18 @@ class OrderCreate(BaseModel):
     items: List[OrderItemCreate]
 
 # ==========================================
-# 2. DTO CHO AUTH & USER
+# 2. DTO CHO AUTH & USER (GIỮ NGUYÊN)
 # ==========================================
 class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    # THÊM MỚI: Cho phép truyền role lúc tạo, mặc định là customer
     role: Optional[str] = "customer"
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-# THÊM MỚI: Schema trả về User (Không chứa password để bảo mật)
 class UserResponse(BaseModel):
     id: int
     full_name: str
@@ -46,19 +47,19 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 # ==========================================
-# 3. DTO CHO TOKEN (JWT)
+# 3. DTO CHO TOKEN (JWT) (GIỮ NGUYÊN)
 # ==========================================
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user: UserResponse # Gửi kèm luôn thông tin User để Frontend hiển thị dễ dàng
+    user: UserResponse
 
 class TokenData(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
 
 # ==========================================
-# 4. DTO CHO CẬP NHẬT ĐƠN HÀNG
+# 4. DTO CHO CẬP NHẬT ĐƠN HÀNG (GIỮ NGUYÊN)
 # ==========================================
 class OrderStatusUpdate(BaseModel):
     status: str

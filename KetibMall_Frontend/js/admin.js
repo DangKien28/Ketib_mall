@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load dữ liệu
     loadProducts();
-    loadOrders(); // THÊM MỚI: Tải luôn danh sách đơn hàng khi mở trang
+    loadOrders();
 });
 
 function addLog(message, isError = false) {
@@ -59,6 +59,7 @@ function addLog(message, isError = false) {
     logContainer.prepend(logItem);
 }
 
+// TẢI SẢN PHẨM & BIẾN THỂ TỪ APP VÀ INVENTORY
 async function loadProducts() {
     const tbody = document.getElementById('product-list');
     if (!tbody) return;
@@ -75,28 +76,31 @@ async function loadProducts() {
 
         let html = '';
         for (const p of products) {
-            let actualStock = 0;
-            try {
-                const resInv = await fetch(`http://localhost:8001/api/inventory/status/${p.id}`);
-                const invData = await resInv.json();
-                actualStock = invData.stock ?? 0;
-            } catch (e) { 
-                console.error(`Không lấy được stock cho ${p.id}`); 
-            }
+            for (const v of p.variants) {
+                let actualStock = 0;
+                try {
+                    const resInv = await fetch(`http://localhost:8001/api/inventory/status/${v.variant_id}`);
+                    if (resInv.ok) {
+                        const invData = await resInv.json();
+                        actualStock = invData.stock ?? 0;
+                    }
+                } catch (e) { }
 
-            html += `
-                <tr class="hover:bg-slate-50 transition-colors border-b">
-                    <td class="px-6 py-4 font-bold text-primary">${p.id}</td>
-                    <td class="px-6 py-4">${p.name}</td>
-                    <td class="px-6 py-4">${p.price.toLocaleString()}đ</td>
-                    <td class="px-6 py-4 text-center font-mono font-bold text-lg ${actualStock > 0 ? 'text-green-600' : 'text-red-500'}">
-                        ${actualStock}
-                    </td>
-                    <td class="px-6 py-4">
-                        ${p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 object-cover rounded shadow-sm">` : '<span class="text-xs text-gray-400">Trống</span>'}
-                    </td>
-                </tr>
-            `;
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors border-b">
+                        <td class="px-6 py-4 font-bold text-primary font-mono">${v.variant_id}</td>
+                        <td class="px-6 py-4 flex items-center gap-3">
+                            ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 rounded object-cover">` : ''}
+                            ${p.name}
+                        </td>
+                        <td class="px-6 py-4"><span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded font-bold">${v.size} / ${v.color}</span></td>
+                        <td class="px-6 py-4">${v.price.toLocaleString()}đ</td>
+                        <td class="px-6 py-4 text-center font-mono font-bold text-lg ${actualStock > 0 ? 'text-green-600' : 'text-red-500'}">
+                            ${actualStock}
+                        </td>
+                    </tr>
+                `;
+            }
         }
         tbody.innerHTML = html;
         addLog("[HỆ THỐNG] Đã làm mới dữ liệu Bảng điều khiển.");
@@ -106,7 +110,7 @@ async function loadProducts() {
     }
 }
 
-// FORM 1: THÊM SẢN PHẨM
+// FORM 1: THÊM SẢN PHẨM & BIẾN THỂ
 const productForm = document.getElementById('product-form');
 if (productForm) {
     productForm.addEventListener('submit', async (e) => {
@@ -114,10 +118,25 @@ if (productForm) {
         
         const token = localStorage.getItem('token');
         const prodId = document.getElementById('product_id').value;
+        const prodName = document.getElementById('product_name').value;
+        
+        const variants = [];
+        document.querySelectorAll('.variant-row').forEach(row => {
+            variants.push({
+                size: row.querySelector('.var-size').value,
+                color: row.querySelector('.var-color').value,
+                price: parseFloat(row.querySelector('.var-price').value)
+            });
+        });
+
+        const productData = {
+            id: prodId,
+            name: prodName,
+            variants: variants
+        };
+
         const formData = new FormData();
-        formData.append('id', prodId);
-        formData.append('name', document.getElementById('product_name').value);
-        formData.append('price', document.getElementById('product_price').value);
+        formData.append('product_data', JSON.stringify(productData)); 
         
         const imageFile = document.getElementById('product_image').files[0];
         if (imageFile) {
@@ -133,29 +152,43 @@ if (productForm) {
 
             const data = await response.json();
             if (response.ok) {
-                addLog(`[APP] Khai báo thành công sản phẩm mới: ${prodId}`);
+                addLog(`[APP] Khai báo thành công SP mới: ${prodId} kèm ${variants.length} phân loại.`);
                 loadProducts(); 
                 productForm.reset();
-                document.getElementById('import_product_id').value = prodId;
+                
+                if (variants.length > 0) {
+                    const firstVariantId = `${prodId}-${variants[0].size}-${variants[0].color}`.toUpperCase();
+                    document.getElementById('import_product_id').value = firstVariantId;
+                }
+                
                 document.getElementById('image-preview-el').classList.add('hidden');
                 document.getElementById('preview-placeholder').classList.remove('hidden');
+                
+                // Giữ lại 1 ô variant trống
+                document.getElementById('variants-container').innerHTML = `
+                    <div class="variant-row flex gap-2">
+                        <input type="text" placeholder="Size (S,M..)" class="var-size w-1/3 border-gray-300 rounded text-sm" required>
+                        <input type="text" placeholder="Màu (Đỏ..)" class="var-color w-1/3 border-gray-300 rounded text-sm" required>
+                        <input type="number" placeholder="Giá (VNĐ)" class="var-price w-1/3 border-gray-300 rounded text-sm" required>
+                    </div>
+                `;
             } else {
                 addLog(`[LỖI APP] ${data.detail || 'Không thể tạo sản phẩm'}`, true);
             }
         } catch (error) {
-            addLog("CRITICAL: Lỗi kết nối tới App Service (Port 8000)", true);
+            addLog("CRITICAL: Lỗi kết nối tới App Service", true);
         }
     });
 }
 
-// FORM 2: NHẬP KHO
+// FORM 2: NHẬP KHO (BẰNG VARIANT_ID)
 const importForm = document.getElementById('import-form');
 if (importForm) {
     importForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const token = localStorage.getItem('token');
-        const productId = document.getElementById('import_product_id').value;
+        const variantId = document.getElementById('import_product_id').value;
         const quantity = document.getElementById('import_quantity').value;
 
         try {
@@ -165,16 +198,16 @@ if (importForm) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ product_id: productId, quantity: parseInt(quantity) })
+                body: JSON.stringify({ variant_id: variantId, quantity: parseInt(quantity) })
             });
 
             const data = await response.json();
             if (response.ok) {
-                addLog(`[KHO] Nhập thêm ${quantity} đơn vị cho mã ${productId} thành công.`);
+                addLog(`[KHO] Nhập thêm ${quantity} đơn vị cho mã ${variantId} thành công.`);
                 importForm.reset();
                 setTimeout(() => { loadProducts(); }, 1000); 
             } else {
-                addLog(`[LỖI KHO] Không thể nhập hàng cho mã ${productId}`, true);
+                addLog(`[LỖI KHO] Không thể nhập hàng cho mã ${variantId}`, true);
             }
         } catch (error) {
             addLog("CRITICAL: Lỗi kết nối tới Inventory Service (Port 8001)", true);
@@ -182,9 +215,7 @@ if (importForm) {
     });
 }
 
-// ==========================================
-// THÊM MỚI: QUẢN LÝ ĐƠN HÀNG
-// ==========================================
+// TẢI VÀ QUẢN LÝ ĐƠN HÀNG
 async function loadOrders() {
     const tbody = document.getElementById('order-list');
     if (!tbody) return;
@@ -205,7 +236,6 @@ async function loadOrders() {
         }
 
         let html = '';
-        // Phối màu cho từng trạng thái giúp Admin nhìn rõ ràng hơn
         const statusColors = {
             'PENDING': 'bg-yellow-100 text-yellow-800',
             'PAID': 'bg-blue-100 text-blue-800',
@@ -262,12 +292,11 @@ async function updateOrderStatus(orderId, newStatus) {
 
         if (response.ok) {
             addLog(`[ĐƠN HÀNG] Đã cập nhật đơn ${orderId} thành ${newStatus}`);
-            // Tải lại bảng để nó đổi màu tự động
             loadOrders(); 
         } else {
             const data = await response.json();
             addLog(`[LỖI CẬP NHẬT] ${data.detail}`, true);
-            loadOrders(); // Reset lại bảng nếu lỗi
+            loadOrders(); 
         }
     } catch (error) {
         console.error('Lỗi cập nhật trạng thái:', error);

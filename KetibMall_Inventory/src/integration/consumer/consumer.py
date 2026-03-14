@@ -20,14 +20,15 @@ def process_order(ch, method, properties, body):
     db = next(database.get_db())
     try:
         for item in items:
-            product_id = item['product_id']
+            # Đổi từ product_id thành variant_id
+            variant_id = item['variant_id']
             qty_to_minus = item['quantity']
             
-            db_item = db.query(models.Inventory).filter(models.Inventory.product_id == product_id).first()
+            db_item = db.query(models.Inventory).filter(models.Inventory.variant_id == variant_id).first()
             if db_item:
                 db_item.actual_stock -= qty_to_minus
                 new_log = models.InventoryLog(
-                    product_id=product_id,
+                    variant_id=variant_id,
                     change_amount=-qty_to_minus,
                     reason=f"Xuất hàng cho đơn {order_id}"
                 )
@@ -54,18 +55,15 @@ def process_order_cancel(ch, method, properties, body):
     db = next(database.get_db())
     try:
         for item in items:
-            product_id = item['product_id']
+            # Đổi từ product_id thành variant_id
+            variant_id = item['variant_id']
             qty_to_add = item['quantity']
             
-            # Tìm sản phẩm trong kho thực
-            db_item = db.query(models.Inventory).filter(models.Inventory.product_id == product_id).first()
+            db_item = db.query(models.Inventory).filter(models.Inventory.variant_id == variant_id).first()
             if db_item:
-                # CỘNG LẠI KHO THỰC TẾ
                 db_item.actual_stock += qty_to_add
-                
-                # Ghi log lịch sử nhập kho lại
                 new_log = models.InventoryLog(
-                    product_id=product_id,
+                    variant_id=variant_id,
                     change_amount=qty_to_add,
                     reason=f"Hoàn kho do khách hủy đơn {order_id}"
                 )
@@ -73,8 +71,6 @@ def process_order_cancel(ch, method, properties, body):
         
         db.commit()
         print(f" [OK] Đã hoàn lại kho thực cho đơn hủy {order_id}")
-        
-        # Xác nhận với RabbitMQ là đã xử lý xong
         ch.basic_ack(delivery_tag=method.delivery_tag)
         
     except Exception as e:
@@ -93,13 +89,11 @@ def start_consuming():
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=host, credentials=credentials))
     channel = connection.channel()
 
-    # Khai báo 2 queue để đảm bảo an toàn
     channel.queue_declare(queue='order_queue', durable=True)
-    channel.queue_declare(queue='order_cancel_queue', durable=True) # Queue mới
+    channel.queue_declare(queue='order_cancel_queue', durable=True)
 
     channel.basic_qos(prefetch_count=1)
     
-    # Gắn hàm xử lý cho từng queue tương ứng
     channel.basic_consume(queue='order_queue', on_message_callback=process_order)
     channel.basic_consume(queue='order_cancel_queue', on_message_callback=process_order_cancel)
 
