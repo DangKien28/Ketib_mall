@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. KIỂM TRA QUYỀN TRUY CẬP (Giữ nguyên)
+    // KIỂM TRA QUYỀN TRUY CẬP
     const authMessageDiv = document.getElementById('auth-message');
     const adminContentDiv = document.getElementById('admin-content');
 
@@ -37,18 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Nếu là Admin -> Hiện giao diện
     adminContentDiv.classList.remove('hidden');
     
-    // Hiện tên Admin
     const userInfoDiv = document.getElementById('user-info');
     if (userInfoDiv) {
         userInfoDiv.innerHTML = `Xin chào Admin: <span class="text-blue-600">${user.full_name || user.email}</span>`;
     }
 
+    // Load dữ liệu
     loadProducts();
+    loadOrders(); // THÊM MỚI: Tải luôn danh sách đơn hàng khi mở trang
 });
 
-// ==========================================
-// THÊM MỚI: HÀM GHI LOG HỆ THỐNG
-// ==========================================
 function addLog(message, isError = false) {
     const logContainer = document.getElementById('activity-log');
     if (!logContainer) return;
@@ -58,19 +56,15 @@ function addLog(message, isError = false) {
     logItem.className = isError ? 'text-red-500 font-semibold' : 'text-green-600';
     logItem.innerHTML = `<span class="text-gray-400">[${time}]</span> ${message}`;
     
-    logContainer.prepend(logItem); // Đẩy log mới nhất lên đầu
+    logContainer.prepend(logItem);
 }
 
-// ==========================================
-// CẬP NHẬT: HÀM LOAD DATA (Kết hợp App + Inventory)
-// ==========================================
 async function loadProducts() {
     const tbody = document.getElementById('product-list');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Đang tải dữ liệu...</td></tr>';
 
     try {
-        // 1. Lấy danh sách sản phẩm từ App
         const resApp = await fetch('http://localhost:8000/api/products/');
         const products = await resApp.json();
 
@@ -80,7 +74,6 @@ async function loadProducts() {
         }
 
         let html = '';
-        // 2. Duyệt từng sản phẩm và gọi sang Inventory lấy tồn kho thực
         for (const p of products) {
             let actualStock = 0;
             try {
@@ -113,9 +106,7 @@ async function loadProducts() {
     }
 }
 
-// ==========================================
 // FORM 1: THÊM SẢN PHẨM
-// ==========================================
 const productForm = document.getElementById('product-form');
 if (productForm) {
     productForm.addEventListener('submit', async (e) => {
@@ -143,12 +134,9 @@ if (productForm) {
             const data = await response.json();
             if (response.ok) {
                 addLog(`[APP] Khai báo thành công sản phẩm mới: ${prodId}`);
-                loadProducts(); // Tự động làm mới bảng
+                loadProducts(); 
                 productForm.reset();
-                // Gợi ý ID sang ô nhập kho
                 document.getElementById('import_product_id').value = prodId;
-                
-                // Reset ảnh xem trước
                 document.getElementById('image-preview-el').classList.add('hidden');
                 document.getElementById('preview-placeholder').classList.remove('hidden');
             } else {
@@ -160,9 +148,7 @@ if (productForm) {
     });
 }
 
-// ==========================================
 // FORM 2: NHẬP KHO
-// ==========================================
 const importForm = document.getElementById('import-form');
 if (importForm) {
     importForm.addEventListener('submit', async (e) => {
@@ -186,11 +172,7 @@ if (importForm) {
             if (response.ok) {
                 addLog(`[KHO] Nhập thêm ${quantity} đơn vị cho mã ${productId} thành công.`);
                 importForm.reset();
-                
-                // Đợi 1 giây để RabbitMQ chạy xong mới lấy dữ liệu hiển thị cho chắc chắn
-                setTimeout(() => {
-                    loadProducts(); 
-                }, 1000); 
+                setTimeout(() => { loadProducts(); }, 1000); 
             } else {
                 addLog(`[LỖI KHO] Không thể nhập hàng cho mã ${productId}`, true);
             }
@@ -198,4 +180,97 @@ if (importForm) {
             addLog("CRITICAL: Lỗi kết nối tới Inventory Service (Port 8001)", true);
         }
     });
+}
+
+// ==========================================
+// THÊM MỚI: QUẢN LÝ ĐƠN HÀNG
+// ==========================================
+async function loadOrders() {
+    const tbody = document.getElementById('order-list');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Đang tải đơn hàng...</td></tr>';
+
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch('http://localhost:8000/api/orders/', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error("Không thể tải danh sách");
+        const orders = await response.json();
+
+        if (orders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Chưa có đơn hàng nào trong hệ thống.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        // Phối màu cho từng trạng thái giúp Admin nhìn rõ ràng hơn
+        const statusColors = {
+            'PENDING': 'bg-yellow-100 text-yellow-800',
+            'PAID': 'bg-blue-100 text-blue-800',
+            'SHIPPING': 'bg-purple-100 text-purple-800',
+            'COMPLETED': 'bg-green-100 text-green-800',
+            'CANCELED': 'bg-red-100 text-red-800'
+        };
+
+        orders.forEach(o => {
+            const colorClass = statusColors[o.status] || 'bg-gray-100 text-gray-800';
+            html += `
+                <tr class="hover:bg-slate-50 transition-colors border-b">
+                    <td class="px-6 py-4 font-bold text-gray-700">${o.id}</td>
+                    <td class="px-6 py-4 font-mono">User #${o.user_id}</td>
+                    <td class="px-6 py-4">${o.items_count} mặt hàng</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${colorClass}">
+                            ${o.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <select onchange="updateOrderStatus('${o.id}', this.value)" 
+                            class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary p-2">
+                            <option value="" disabled selected>Đổi trạng thái...</option>
+                            <option value="PENDING">PENDING (Chờ xử lý)</option>
+                            <option value="PAID">PAID (Đã thanh toán)</option>
+                            <option value="SHIPPING">SHIPPING (Đang giao)</option>
+                            <option value="COMPLETED">COMPLETED (Thành công)</option>
+                            <option value="CANCELED">CANCELED (Hủy đơn)</option>
+                        </select>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        addLog("[ĐƠN HÀNG] Đã tải mới danh sách đơn mua.");
+    } catch (error) {
+        console.error('Lỗi tải đơn hàng:', error);
+        addLog("Lỗi khi kết nối lấy dữ liệu đơn hàng.", true);
+    }
+}
+
+async function updateOrderStatus(orderId, newStatus) {
+    const token = localStorage.getItem('token');
+    try {
+        const response = await fetch(`http://localhost:8000/api/orders/${orderId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        if (response.ok) {
+            addLog(`[ĐƠN HÀNG] Đã cập nhật đơn ${orderId} thành ${newStatus}`);
+            // Tải lại bảng để nó đổi màu tự động
+            loadOrders(); 
+        } else {
+            const data = await response.json();
+            addLog(`[LỖI CẬP NHẬT] ${data.detail}`, true);
+            loadOrders(); // Reset lại bảng nếu lỗi
+        }
+    } catch (error) {
+        console.error('Lỗi cập nhật trạng thái:', error);
+        addLog("Lỗi kết nối khi cập nhật đơn hàng.", true);
+    }
 }

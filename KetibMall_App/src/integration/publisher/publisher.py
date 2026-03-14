@@ -1,4 +1,3 @@
-# File: KetibMall_App/src/integration/publisher.py
 import pika
 import json
 import os
@@ -7,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def send_order_event(order_payload: dict):
-    # Load lại môi trường
     load_dotenv() 
 
     rabbitmq_host = os.getenv("RABBITMQ_HOST")
@@ -42,3 +40,39 @@ def send_order_event(order_payload: dict):
         
     except Exception as e:
         print(f" [!] Lỗi khi kết nối RabbitMQ: {e}")
+
+# ==========================================
+# THÊM MỚI: HÀM GỬI TÍN HIỆU HỦY ĐƠN (SAGA)
+# ==========================================
+def send_order_cancel_event(cancel_payload: dict):
+    load_dotenv() 
+
+    rabbitmq_host = os.getenv("RABBITMQ_HOST")
+    rabbitmq_user = os.getenv("RABBITMQ_USER")
+    rabbitmq_pass = os.getenv("RABBITMQ_PASS")
+    
+    try:
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=rabbitmq_host, credentials=credentials)
+        )
+        channel = connection.channel()
+        
+        # Khai báo một hàng đợi MỚI chuyên dùng để Hủy đơn
+        queue_name = 'order_cancel_queue'
+        channel.queue_declare(queue=queue_name, durable=True)
+        
+        channel.basic_publish(
+            exchange='',
+            routing_key=queue_name,
+            body=json.dumps(cancel_payload),
+            properties=pika.BasicProperties(
+                delivery_mode=2, # Giúp tin nhắn không bị mất nếu RabbitMQ sập
+            ) 
+        )
+        
+        print(f" [AMQP] Đã gửi tín hiệu HỦY đơn hàng {cancel_payload['order_id']} sang RabbitMQ")
+        connection.close()
+        
+    except Exception as e:
+        print(f" [!] Lỗi khi phát tín hiệu hủy đơn: {e}")

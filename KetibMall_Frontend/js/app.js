@@ -13,36 +13,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function redirect_to_personal() {
-    
-}
-
+// ==========================================
+// TẢI VÀ HIỂN THỊ SẢN PHẨM (ĐÃ TÁCH 2 KHU VỰC)
+// ==========================================
 async function loadProducts() {
     try {
         const response = await fetch('http://localhost:8000/api/products/');
         const products = await response.json();
-        const grid = document.getElementById('product-grid');
-        if (!grid) return;
+        
+        // 1. Tìm thẻ chứa lưới sản phẩm Còn hàng và Hết hàng
+        // (Lưu ý: Bạn hãy kiểm tra lại id trong file app.html xem có đúng là 'product-grid' và 'outofstock-grid' không nhé)
+        const availableGrid = document.getElementById('product-grid'); 
+        const outOfStockGrid = document.getElementById('outofstock-grid') || document.querySelector('#section-outofstock .grid') || document.getElementById('product-grid-outofstock');
 
-        grid.innerHTML = '';
+        // Xóa dữ liệu cũ
+        if (availableGrid) availableGrid.innerHTML = '';
+        if (outOfStockGrid) outOfStockGrid.innerHTML = '';
+
+        // 2. Phân loại và hiển thị
         products.forEach(p => {
             const imageTag = p.image_url 
                 ? `<img src="${p.image_url}" alt="${p.name}" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">`
                 : `<div class="w-full h-48 bg-gray-100 rounded-md mb-4 flex items-center justify-center text-gray-400">No Image</div>`;
             
-            grid.innerHTML += `
+            const productCard = `
                 <div class="border p-4 rounded-lg shadow-sm hover:shadow-md transition bg-white flex flex-col">
                     ${imageTag}
                     <h3 class="font-bold text-lg text-gray-800">${p.name}</h3>
                     <p class="text-red-500 font-bold my-2">${p.price.toLocaleString()} VNĐ</p>
                     <p class="text-gray-500 text-sm mb-4">Kho tạm: <span class="font-mono font-bold ${p.cached_stock > 0 ? 'text-green-600' : 'text-red-500'}">${p.cached_stock}</span></p>
                     <button onclick="addToCart('${p.id}', '${p.name}', ${p.price})" 
-                            class="mt-auto bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-                            ${p.cached_stock <= 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                            class="mt-auto font-semibold px-4 py-2 rounded-lg transition ${p.cached_stock > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+                            ${p.cached_stock <= 0 ? 'disabled' : ''}>
                         ${p.cached_stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}
                     </button>
                 </div>
             `;
+
+            // Kiểm tra tồn kho để xếp vào đúng chỗ
+            if (p.cached_stock > 0) {
+                if (availableGrid) availableGrid.innerHTML += productCard;
+            } else {
+                if (outOfStockGrid) {
+                    outOfStockGrid.innerHTML += productCard;
+                } else if (availableGrid) {
+                    // Đề phòng trường hợp HTML không có lưới outofstock, ta nhét tạm vào lưới chung
+                    availableGrid.innerHTML += productCard; 
+                }
+            }
         });
     } catch (error) {
         console.error('Lỗi tải sản phẩm:', error);

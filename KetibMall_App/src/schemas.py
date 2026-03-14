@@ -56,3 +56,9 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
+
+# ==========================================
+# 4. DTO CHO CẬP NHẬT ĐƠN HÀNG
+# ==========================================
+class OrderStatusUpdate(BaseModel):
+    status: str
