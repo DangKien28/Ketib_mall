@@ -1,4 +1,3 @@
-// Biến toàn cục để lưu tạm danh sách sản phẩm (Dùng để lấy Tên và Giá hiển thị trong Giỏ hàng)
 let globalProducts = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,67 +14,88 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. TẢI DANH SÁCH SẢN PHẨM & DROPDOWN BIẾN THỂ
+// 1. TẢI VÀ HIỂN THỊ SẢN PHẨM (CÓ TÌM KIẾM)
 // ==========================================
 async function loadProducts() {
     try {
         const response = await fetch('http://localhost:8080/api/products/');
         const products = await response.json();
         
-        globalProducts = products; // Lưu lại để Giỏ hàng dùng ké
-
-        const availableGrid = document.getElementById('product-grid'); 
-        const outOfStockGrid = document.getElementById('outofstock-grid') || document.querySelector('#section-outofstock .grid');
-
-        if (availableGrid) availableGrid.innerHTML = '';
-        if (outOfStockGrid) outOfStockGrid.innerHTML = '';
-
-        products.forEach(p => {
-            if (!p.variants || p.variants.length === 0) return;
-
-            let optionsHTML = '';
-            p.variants.forEach(v => {
-                optionsHTML += `<option value="${v.variant_id}" data-price="${v.price}" data-stock="${v.cached_stock}">
-                                    Size: ${v.size} - Màu: ${v.color}
-                                </option>`;
-            });
-
-            const defVar = p.variants[0];
-            const imageTag = p.image_url 
-                ? `<img src="${p.image_url}" alt="${p.name}" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">`
-                : `<div class="w-full h-48 bg-gray-100 rounded-md mb-4 flex items-center justify-center text-gray-400">No Image</div>`;
-            
-            const productCard = `
-                <div class="border p-4 rounded-lg shadow-sm hover:shadow-md transition bg-white flex flex-col">
-                    ${imageTag}
-                    <h3 class="font-bold text-lg text-gray-800">${p.name}</h3>
-                    
-                    <select id="select-${p.id}" class="mt-2 mb-1 border-gray-300 rounded text-sm bg-gray-50 focus:ring-blue-500" onchange="changeVariant('${p.id}')">
-                        ${optionsHTML}
-                    </select>
-
-                    <p id="price-${p.id}" class="text-red-500 font-bold my-2 text-xl">${defVar.price.toLocaleString()} VNĐ</p>
-                    <p class="text-gray-500 text-sm mb-4">Kho tạm: <span id="stock-${p.id}" class="font-mono font-bold ${defVar.cached_stock > 0 ? 'text-green-600' : 'text-red-500'}">${defVar.cached_stock}</span></p>
-                    
-                    <button id="btn-${p.id}" onclick="addToCart('${defVar.variant_id}', 1)" 
-                            class="mt-auto font-semibold px-4 py-2 rounded-lg transition ${defVar.cached_stock > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-                            ${defVar.cached_stock <= 0 ? 'disabled' : ''}>
-                        ${defVar.cached_stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}
-                    </button>
-                </div>
-            `;
-
-            const totalStock = p.variants.reduce((sum, v) => sum + v.cached_stock, 0);
-            if (totalStock > 0) {
-                if (availableGrid) availableGrid.innerHTML += productCard;
-            } else {
-                if (outOfStockGrid) outOfStockGrid.innerHTML += productCard;
-                else if (availableGrid) availableGrid.innerHTML += productCard; 
-            }
-        });
+        globalProducts = products; // Lưu lại dữ liệu gốc
+        renderProducts(globalProducts); // Vẽ toàn bộ sản phẩm ra màn hình
     } catch (error) {
         console.error('Lỗi tải sản phẩm:', error);
     }
+}
+
+function renderProducts(productsToDisplay) {
+    const availableGrid = document.getElementById('product-grid'); 
+    const outOfStockGrid = document.getElementById('outofstock-grid') || document.querySelector('#section-outofstock .grid');
+
+    if (availableGrid) availableGrid.innerHTML = '';
+    if (outOfStockGrid) outOfStockGrid.innerHTML = '';
+
+    if (productsToDisplay.length === 0) {
+        if (availableGrid) availableGrid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">Không tìm thấy sản phẩm nào phù hợp!</div>`;
+        return;
+    }
+
+    productsToDisplay.forEach(p => {
+        if (!p.variants || p.variants.length === 0) return;
+
+        let optionsHTML = '';
+        p.variants.forEach(v => {
+            optionsHTML += `<option value="${v.variant_id}" data-price="${v.price}" data-stock="${v.cached_stock}">
+                                Size: ${v.size} - Màu: ${v.color}
+                            </option>`;
+        });
+
+        const defVar = p.variants[0];
+        const imageTag = p.image_url 
+            ? `<img src="${p.image_url}" alt="${p.name}" class="w-full h-48 object-cover rounded-md mb-4 shadow-sm">`
+            : `<div class="w-full h-48 bg-gray-100 rounded-md mb-4 flex items-center justify-center text-gray-400">No Image</div>`;
+        
+        const productCard = `
+            <div class="border p-4 rounded-lg shadow-sm hover:shadow-md transition bg-white flex flex-col">
+                ${imageTag}
+                <h3 class="font-bold text-lg text-gray-800">${p.name}</h3>
+                
+                <select id="select-${p.id}" class="mt-2 mb-1 border-gray-300 rounded text-sm bg-gray-50 focus:ring-blue-500" onchange="changeVariant('${p.id}')">
+                    ${optionsHTML}
+                </select>
+
+                <p id="price-${p.id}" class="text-red-500 font-bold my-2 text-xl">${defVar.price.toLocaleString()} VNĐ</p>
+                <p class="text-gray-500 text-sm mb-4">Kho tạm: <span id="stock-${p.id}" class="font-mono font-bold ${defVar.cached_stock > 0 ? 'text-green-600' : 'text-red-500'}">${defVar.cached_stock}</span></p>
+                
+                <button id="btn-${p.id}" onclick="addToCart('${defVar.variant_id}', 1)" 
+                        class="mt-auto font-semibold px-4 py-2 rounded-lg transition ${defVar.cached_stock > 0 ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+                        ${defVar.cached_stock <= 0 ? 'disabled' : ''}>
+                    ${defVar.cached_stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng'}
+                </button>
+            </div>
+        `;
+
+        const totalStock = p.variants.reduce((sum, v) => sum + v.cached_stock, 0);
+        if (totalStock > 0) {
+            if (availableGrid) availableGrid.innerHTML += productCard;
+        } else {
+            if (outOfStockGrid) outOfStockGrid.innerHTML += productCard;
+            else if (availableGrid) availableGrid.innerHTML += productCard; 
+        }
+    });
+}
+
+// Hàm xử lý tìm kiếm (Được gọi mỗi khi gõ phím)
+window.searchProducts = function() {
+    const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+    
+    // Lọc các sản phẩm có tên chứa từ khóa
+    const filteredProducts = globalProducts.filter(p => 
+        p.name.toLowerCase().includes(keyword)
+    );
+    
+    // Vẽ lại màn hình với danh sách đã lọc
+    renderProducts(filteredProducts);
 }
 
 window.changeVariant = function(productId) {
@@ -109,9 +129,7 @@ window.changeVariant = function(productId) {
 // ==========================================
 // 2. LOGIC GIỎ HÀNG (DÙNG API REDIS)
 // ==========================================
-
-// Thêm hoặc Bớt sản phẩm trong Giỏ
-async function addToCart(variantId, quantity) {
+async function addToCart(variantId, quantity, isSilent = false) {
     const token = localStorage.getItem('token');
     if (!token) {
         alert("Bạn cần đăng nhập để thêm hàng vào giỏ nhé!");
@@ -130,8 +148,8 @@ async function addToCart(variantId, quantity) {
         });
 
         if (response.ok) {
-            // Nếu là thao tác bấm nút "Thêm vào giỏ" ở ngoài thì hiện thông báo
-            if (quantity > 0 && arguments.callee.caller.name !== "updateCartQuantity") {
+            // Chỉ hiện thông báo khi số lượng > 0 VÀ không bị yêu cầu im lặng (isSilent = false)
+            if (quantity > 0 && !isSilent) {
                 alert("Đã thêm sản phẩm vào giỏ hàng thành công!");
             }
             loadCartUI(); // Cập nhật lại giao diện giỏ hàng
@@ -146,7 +164,8 @@ async function addToCart(variantId, quantity) {
 
 // Hàm dùng cho nút [+] và [-] trong thanh sidebar Giỏ hàng
 window.updateCartQuantity = function(variantId, change) {
-    addToCart(variantId, change); // Gọi thẳng API để cộng trừ (1 hoặc -1)
+    // Truyền tham số true vào cuối để báo cho hàm addToCart biết: "Hãy chạy ngầm, đừng hiện alert nhé!"
+    addToCart(variantId, change, true); 
 }
 
 // Tải Giỏ hàng từ Backend và vẽ ra giao diện
@@ -287,16 +306,17 @@ if (checkoutBtn) {
             const data = await response.json();
             
             if (response.ok) {
-                alert('🎉 Đặt hàng thành công! Mã đơn: ' + data.order_id);
-                
-                // Sau khi đặt hàng, xóa hết món đồ trong Giỏ hàng (Redis) thông qua API
                 for (let vId of items.map(i => i.variant_id)) {
                     await fetch(`http://localhost:8080/api/cart/remove/${vId}`, {
                         method: 'DELETE',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                 }
-
+                
+                // MỞ TRANG QUÉT MÃ QR CỦA SEPAY TRONG TAB MỚI
+                window.open(data.checkout_url, '_blank');
+                alert(`🎉 Đặt hàng thành công! Mã đơn: ${data.order_id}\nVui lòng quét mã QR ở Tab mới để chuyển khoản nhé!`);
+                
                 loadCartUI(); 
                 loadProducts(); 
                 

@@ -11,3 +11,4 @@ email-validator
 PyJWT
 python-jose[cryptography]
 redis
+cloudinary
