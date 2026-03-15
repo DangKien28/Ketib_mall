@@ -66,7 +66,7 @@ async function loadProducts() {
     tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Đang tải dữ liệu...</td></tr>';
 
     try {
-        const resApp = await fetch('http://localhost:8000/api/products/');
+        const resApp = await fetch('http://localhost:8080/api/products/');
         const products = await resApp.json();
 
         if (products.length === 0) {
@@ -79,7 +79,7 @@ async function loadProducts() {
             for (const v of p.variants) {
                 let actualStock = 0;
                 try {
-                    const resInv = await fetch(`http://localhost:8001/api/inventory/status/${v.variant_id}`);
+                    const resInv = await fetch(`http://localhost:8080/api/inventory/status/${v.variant_id}`);
                     if (resInv.ok) {
                         const invData = await resInv.json();
                         actualStock = invData.stock ?? 0;
@@ -144,7 +144,7 @@ if (productForm) {
         }
 
         try {
-            const response = await fetch('http://localhost:8000/api/products/', {
+            const response = await fetch('http://localhost:8080/api/products/', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -192,7 +192,7 @@ if (importForm) {
         const quantity = document.getElementById('import_quantity').value;
 
         try {
-            const response = await fetch('http://localhost:8001/api/inventory/import', {
+            const response = await fetch('http://localhost:8080/api/inventory/import', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ async function loadOrders() {
 
     const token = localStorage.getItem('token');
     try {
-        const response = await fetch('http://localhost:8000/api/orders/', {
+        const response = await fetch('http://localhost:8080/api/orders/', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -281,7 +281,7 @@ async function loadOrders() {
 async function updateOrderStatus(orderId, newStatus) {
     const token = localStorage.getItem('token');
     try {
-        const response = await fetch(`http://localhost:8000/api/orders/${orderId}/status`, {
+        const response = await fetch(`http://localhost:8080/api/orders/${orderId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

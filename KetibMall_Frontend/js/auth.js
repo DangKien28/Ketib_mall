@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('password', password);
 
             try {
-                const response = await fetch('http://localhost:8000/api/auth/login', {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded' // Khác với lúc đăng ký!
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                const response = await fetch('http://localhost:8000/api/auth/register', {
+                const response = await fetch('http://localhost:8080/api/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
