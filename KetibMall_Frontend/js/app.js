@@ -306,6 +306,7 @@ if (checkoutBtn) {
             const data = await response.json();
             
             if (response.ok) {
+                // Xóa các sản phẩm khỏi giỏ hàng
                 for (let vId of items.map(i => i.variant_id)) {
                     await fetch(`http://localhost:8080/api/cart/remove/${vId}`, {
                         method: 'DELETE',
@@ -313,15 +314,9 @@ if (checkoutBtn) {
                     });
                 }
                 
-                // MỞ TRANG QUÉT MÃ QR CỦA SEPAY TRONG TAB MỚI
-                window.open(data.checkout_url, '_blank');
-                alert(`🎉 Đặt hàng thành công! Mã đơn: ${data.order_id}\nVui lòng quét mã QR ở Tab mới để chuyển khoản nhé!`);
+                // Chuyển hướng trình duyệt sang trang thanh toán Stripe
+                window.location.href = data.checkout_url;
                 
-                loadCartUI(); 
-                loadProducts(); 
-                
-                const sidebar = document.getElementById('cart-sidebar');
-                if (sidebar) sidebar.classList.add('translate-x-full');
             } else {
                 alert('Lỗi đặt hàng: ' + (data.detail || 'Không xác định'));
             }

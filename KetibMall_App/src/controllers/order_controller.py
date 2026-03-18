@@ -2,103 +2,152 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 import uuid
 import os
+import stripe
 import redis
-
+import logging
 from src.models import database, models
 from src import schemas
 from src.dependencies import get_current_user, get_admin_user
 from src.integration.publisher.publisher import send_order_event, send_order_cancel_event
 
+# Thiết lập ghi nhật ký (Log) để theo dõi trong Docker
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
-# ==========================================
-# CẤU HÌNH REDIS & SEPAY
-# ==========================================
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = int(os.getenv("REDIS_PORT"))
-REDIS_DB = int(os.getenv("REDIS_DB"))
-REDIS_PASS = os.getenv("REDIS_PASS")
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, password=REDIS_PASS, decode_responses=True)
+# --- CẤU HÌNH HỆ THỐNG ---
+# Lấy giá trị từ file .env
+STRIPE_KEY = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = STRIPE_KEY
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+DOMAIN_URL = os.getenv("DOMAIN_URL", "http://localhost:8080")
 
-SEPAY_BANK_BIN = os.getenv("SEPAY_BANK_BIN", "")
-SEPAY_ACCOUNT_NO = os.getenv("SEPAY_ACCOUNT_NO", "")
+# Kiểm tra việc nạp biến môi trường ngay khi khởi động
+if not STRIPE_KEY:
+    logger.error("❌ LOI: Khong tim thay STRIPE_SECRET_KEY. Hay kiem tra file .env va Docker config.")
+else:
+    # Chỉ in ra 5 ký tự đầu để bảo mật nhưng vẫn xác nhận được là đã nạp
+    logger.info(f"✅ Da nap Stripe Key: {STRIPE_KEY[:8]}...")
+
+# Cấu hình Redis
+REDIS_HOST = os.getenv("REDIS_HOST", "redis_cache")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
+# Ngưỡng tối thiểu của Stripe (VNĐ)
+MIN_PAYMENT_AMOUNT = 15000 
 
 # ==========================================
-# 1. KHÁCH HÀNG ĐẶT HÀNG & TẠO LINK SEPAY
+# 1. API CHO KHÁCH HÀNG: ĐẶT HÀNG & THANH TOÁN
 # ==========================================
+@router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_order(
     order: schemas.OrderCreate, 
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user) 
 ):
-    # Mã đơn hàng ngắn gọn để khách dễ gõ nội dung chuyển khoản (VD: DH12345)
+    # Kiểm tra lại một lần nữa trước khi gọi Stripe
+    if not stripe.api_key:
+        logger.error("❌ Stripe API Key bi trong khi thuc hien giao dich.")
+        raise HTTPException(status_code=500, detail="May chu chua duoc cau hinh thanh toan.")
+
     order_id = f"DH{str(uuid.uuid4().int)[:5]}"
     new_order = models.Order(id=order_id, user_id=current_user.id, status="PENDING")
     db.add(new_order)
 
     items_for_mq = []
+    line_items = []
     total_amount = 0
 
-    for item in order.items:
-        variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == item.variant_id).first()
-        if not variant or variant.cached_stock < item.quantity:
-            db.rollback()
-            raise HTTPException(status_code=400, detail=f"Sản phẩm {item.variant_id} không hợp lệ/hết hàng.")
-        
-        variant.cached_stock -= item.quantity
-        order_item = models.OrderItem(order_id=order_id, variant_id=item.variant_id, quantity=item.quantity)
-        db.add(order_item)
-        items_for_mq.append({"variant_id": item.variant_id, "quantity": item.quantity})
-        
-        total_amount += int(variant.price) * item.quantity
-
     try:
+        for item in order.items:
+            variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == item.variant_id).first()
+            if not variant:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Sản phẩm {item.variant_id} không tồn tại.")
+            
+            if variant.cached_stock < item.quantity:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Sản phẩm {variant.id} hết hàng.")
+            
+            price = int(variant.price)
+            total_amount += price * item.quantity
+
+            variant.cached_stock -= item.quantity
+            db.add(models.OrderItem(order_id=order_id, variant_id=item.variant_id, quantity=item.quantity))
+            items_for_mq.append({"variant_id": item.variant_id, "quantity": item.quantity})
+            
+            line_items.append({
+                'price_data': {
+                    'currency': 'vnd',
+                    'product_data': {'name': f"Mã SP: {variant.id}"},
+                    'unit_amount': price,
+                },
+                'quantity': item.quantity,
+            })
+
+        # Kiểm tra tổng tiền tối thiểu (Lỗi 0.42$ bạn gặp trước đó)
+        if total_amount < MIN_PAYMENT_AMOUNT:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Đơn hàng cần tối thiểu {MIN_PAYMENT_AMOUNT:,}đ.")
+
         db.commit()
+        
+        # Gọi Stripe tạo phiên thanh toán
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            client_reference_id=order_id, 
+            success_url=f"{DOMAIN_URL}/app.html",
+            cancel_url=f"{DOMAIN_URL}/app.html",
+        )
+
         send_order_event({"order_id": order_id, "items": items_for_mq})
         redis_client.delete("all_products_cache")
         
-        # TẠO LINK TRANG THANH TOÁN QUÉT MÃ QR CỦA SEPAY
-        # Cú pháp: pay.sepay.vn/s/[Bank_BIN]/[Account_No]?amount=...&note=...
-        # checkout_url = f"https://pay.sepay.vn/s/{SEPAY_BANK_BIN}/{SEPAY_ACCOUNT_NO}?amount={total_amount}&note={order_id}"
-        checkout_url = f"https://qr.sepay.vn/img?acc={SEPAY_ACCOUNT_NO}&bank=BIDV&amount={total_amount}&des={order_id}"
+        return {"checkout_url": checkout_session.url, "order_id": order_id}
+
+    except stripe.error.AuthenticationError:
+        db.rollback()
+        logger.error("🔥 Stripe Authentication Error: Key khong hop le hoac bi tu choi.")
+        raise HTTPException(status_code=500, detail="Loi xac thuc voi cong thanh toan Stripe.")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return {"message": "Đang chuyển hướng thanh toán...", "order_id": order_id, "checkout_url": checkout_url}
+        logger.error(f"❌ LOI HE THONG: {str(e)}")
+        raise HTTPException(status_code=500, detail="Loi may chu khi xu ly don hang.")
 
 # ==========================================
-# 2. WEBHOOK: SEPAY BÁO CÁO CÓ TIỀN VÀO TÀI KHOẢN
+# 2. WEBHOOK: TU DONG CAP NHAT PAID
 # ==========================================
-@router.post("/sepay-webhook")
-async def sepay_webhook(request: Request, db: Session = Depends(database.get_db)):
-    """
-    Khi có người chuyển khoản thành công, máy chủ SePay sẽ bắn thông tin vào API này.
-    Chúng ta sẽ đọc 'nội dung chuyển khoản' để tìm mã đơn hàng và cập nhật thành PAID.
-    """
-    data = await request.json()
-    
-    # Lấy nội dung chuyển khoản (Ví dụ: "NGUYEN VAN A CHUYEN TIEN DH12345")
-    transfer_content = data.get("content", "").upper()
-    transfer_amount = data.get("transferAmount", 0)
-    
-    # Tìm đơn hàng có mã trùng với nội dung chuyển khoản
-    orders = db.query(models.Order).filter(models.Order.status == "PENDING").all()
-    
-    for order in orders:
-        if order.id in transfer_content:
-            # Nếu mã đơn xuất hiện trong lời nhắn chuyển khoản -> Đánh dấu Đã thanh toán
+@router.post("/stripe-webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(database.get_db)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception as e:
+        return {"status": "error", "message": "Signature khong hop le"}
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        order_id = session.get("client_reference_id")
+        
+        order = db.query(models.Order).filter(models.Order.id == order_id).first()
+        if order and order.status == "PENDING":
             order.status = "PAID"
             db.commit()
-            print(f"🎉 [WEBHOOK] Đơn hàng {order.id} đã được thanh toán thành công ({transfer_amount} VNĐ)!")
-            return {"success": True, "message": f"Updated order {order.id} to PAID"}
-            
-    return {"success": False, "message": "Không tìm thấy mã đơn hàng phù hợp."}
+            logger.info(f"✅ Don hang {order_id} da chuyen sang PAID.")
+
+    return {"status": "success"}
 
 # ==========================================
-# CÁC API CŨ (GET ORDERS & UPDATE STATUS)
+# 3. ADMIN API (GIU NGUYEN LOGIC CU)
 # ==========================================
+@router.get("")
 @router.get("/")
 def get_all_orders(db: Session = Depends(database.get_db), admin_user: models.User = Depends(get_admin_user)):
     orders = db.query(models.Order).order_by(models.Order.id.desc()).all()
@@ -107,27 +156,16 @@ def get_all_orders(db: Session = Depends(database.get_db), admin_user: models.Us
 @router.put("/{order_id}/status")
 def update_order_status(order_id: str, status_data: schemas.OrderStatusUpdate, db: Session = Depends(database.get_db), admin_user: models.User = Depends(get_admin_user)):
     order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order: raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
-    
-    valid_statuses = ["PENDING", "PAID", "SHIPPING", "COMPLETED", "CANCELED"]
-    if status_data.status not in valid_statuses: raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ.")
+    if not order:
+        raise HTTPException(status_code=404, detail="Khong tim thay don hang.")
 
     if status_data.status == "CANCELED" and order.status != "CANCELED":
-        items_for_mq = []
         for item in order.items:
             variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == item.variant_id).first()
             if variant: variant.cached_stock += item.quantity
-            items_for_mq.append({"variant_id": item.variant_id, "quantity": item.quantity})
-        try:
-            order.status = status_data.status
-            db.commit()
-            send_order_cancel_event({"order_id": order_id, "items": items_for_mq})
-            redis_client.delete("all_products_cache")
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Lỗi hệ thống khi hủy đơn.")
-    else:
-        order.status = status_data.status
-        db.commit()
+        send_order_cancel_event({"order_id": order_id, "items": [{"variant_id": i.variant_id, "quantity": i.quantity} for i in order.items]})
 
-    return {"message": f"Đã cập nhật đơn hàng {order_id} thành {status_data.status}", "new_status": order.status}
+    order.status = status_data.status
+    db.commit()
+    redis_client.delete("all_products_cache")
+    return {"message": "Thành công", "new_status": order.status}
