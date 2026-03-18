@@ -31,9 +31,18 @@ else:
     logger.info(f"✅ Da nap Stripe Key: {STRIPE_KEY[:8]}...")
 
 # Cấu hình Redis
+# Thêm dòng lấy REDIS_PASS
 REDIS_HOST = os.getenv("REDIS_HOST", "redis_cache")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+REDIS_PASS = os.getenv("REDIS_PASS") # Lấy mật khẩu từ file .env
+
+# Truyền thêm password vào redis.Redis
+redis_client = redis.Redis(
+    host=REDIS_HOST, 
+    port=REDIS_PORT, 
+    password=REDIS_PASS,
+    decode_responses=True
+)
 
 # Ngưỡng tối thiểu của Stripe (VNĐ)
 MIN_PAYMENT_AMOUNT = 15000 
