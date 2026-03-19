@@ -9,6 +9,7 @@ from src.controllers.cart_controller import router as cart_router
 from src.controllers.product_controller import router as product_router
 from src.controllers.order_controller import router as order_router
 from src.controllers.auth_controller import router as auth_router
+from src.controllers.shipping_controller import router as shipping_router
 
 app = FastAPI(title="KetibMall App API", version="2.0")
 
@@ -39,6 +40,7 @@ app.include_router(product_router)
 app.include_router(order_router)
 app.include_router(auth_router)
 app.include_router(cart_router)
+app.include_router(shipping_router)
 
 @app.get("/")
 def home():

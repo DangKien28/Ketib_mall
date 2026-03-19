@@ -238,8 +238,11 @@ async function loadCartUI() {
             `;
         });
 
+        // --- Cập nhật: Cộng thêm phí ship vào tổng tiền ---
+        const finalTotal = totalPrice + currentShippingFee;
+
         if(list) list.innerHTML = html;
-        if(totalDiv) totalDiv.innerText = `${totalPrice.toLocaleString()} VNĐ`;
+        if(totalDiv) totalDiv.innerText = `${finalTotal.toLocaleString()} VNĐ`;
         if(countSpan) countSpan.innerText = totalItems;
 
     } catch (error) {
@@ -293,6 +296,26 @@ if (checkoutBtn) {
             quantity: parseInt(cartData.cart[vId])
         }));
 
+        // --- Cập nhật: Lấy thông tin giao hàng từ giao diện ---
+        const addressDetail = document.getElementById("shipping-address") ? document.getElementById("shipping-address").value : "";
+        const districtId = document.getElementById("district-select") ? document.getElementById("district-select").value : "";
+        const wardCode = document.getElementById("ward-select") ? document.getElementById("ward-select").value : "";
+
+        if (!districtId || !wardCode || !addressDetail) {
+            alert("Vui lòng nhập đầy đủ địa chỉ giao hàng trước khi thanh toán!");
+            return;
+        }
+
+        // Tạo cục dữ liệu chuẩn bị gửi đi (Bao gồm cả item và thông tin ship)
+        const payload = {
+            user_id: 0, // Cần điều chỉnh nếu backend yêu cầu user_id thực tế
+            items: items,
+            shipping_address: addressDetail,
+            district_id: parseInt(districtId),
+            ward_code: wardCode,
+            shipping_fee: currentShippingFee
+        };
+
         try {
             const response = await fetch('http://localhost:8080/api/orders/', {
                 method: 'POST',
@@ -300,7 +323,7 @@ if (checkoutBtn) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ user_id: 0, items: items }) 
+                body: JSON.stringify(payload) 
             });
 
             const data = await response.json();
@@ -326,3 +349,124 @@ if (checkoutBtn) {
         }
     });
 }
+
+
+// ==========================================
+// THÊM MỚI: LOGIC VẬN CHUYỂN GIAO HÀNG NHANH
+// ==========================================
+
+const GHN_TOKEN = "eee83e0e-23a7-11f1-a973-aee5264794df";
+let currentShippingFee = 0;
+
+// 1. Load danh sách Tỉnh/Thành khi vừa mở trang
+async function loadProvinces() {
+    try {
+        const response = await fetch("https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/province", {
+            headers: { "token": GHN_TOKEN }
+        });
+        const data = await response.json();
+        if (data.code === 200) {
+            const provinceSelect = document.getElementById("province-select");
+            data.data.forEach(p => {
+                let option = new Option(p.ProvinceName, p.ProvinceID);
+                provinceSelect.add(option);
+            });
+        }
+    } catch (error) {
+        console.error("Lỗi tải tỉnh thành:", error);
+    }
+}
+
+// 2. Load danh sách Quận/Huyện khi chọn Tỉnh
+async function loadDistricts() {
+    const provinceId = document.getElementById("province-select").value;
+    const districtSelect = document.getElementById("district-select");
+    const wardSelect = document.getElementById("ward-select");
+    
+    districtSelect.innerHTML = '<option value="">-- Chọn Quận/Huyện --</option>';
+    wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+    wardSelect.disabled = true;
+
+    if (!provinceId) {
+        districtSelect.disabled = true;
+        return;
+    }
+
+    try {
+        const response = await fetch("https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/district", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "token": GHN_TOKEN },
+            body: JSON.stringify({ province_id: parseInt(provinceId) })
+        });
+        const data = await response.json();
+        if (data.code === 200) {
+            data.data.forEach(d => {
+                let option = new Option(d.DistrictName, d.DistrictID);
+                districtSelect.add(option);
+            });
+            districtSelect.disabled = false;
+        }
+    } catch (error) {
+        console.error("Lỗi tải quận huyện:", error);
+    }
+}
+
+// 3. Load danh sách Phường/Xã khi chọn Huyện
+async function loadWards() {
+    const districtId = document.getElementById("district-select").value;
+    const wardSelect = document.getElementById("ward-select");
+    
+    wardSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+
+    if (!districtId) {
+        wardSelect.disabled = true;
+        return;
+    }
+
+    try {
+        const response = await fetch("https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/ward", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "token": GHN_TOKEN },
+            body: JSON.stringify({ district_id: parseInt(districtId) })
+        });
+        const data = await response.json();
+        if (data.code === 200) {
+            data.data.forEach(w => {
+                let option = new Option(w.WardName, w.WardCode);
+                wardSelect.add(option);
+            });
+            wardSelect.disabled = false;
+        }
+    } catch (error) {
+        console.error("Lỗi tải phường xã:", error);
+    }
+}
+
+// 4. Tính phí ship thông qua Backend API
+async function calculateShipping() {
+    const districtId = document.getElementById("district-select").value;
+    const wardCode = document.getElementById("ward-select").value;
+
+    if (!districtId || !wardCode) return;
+
+    try {
+        // Gọi API backend 
+        const response = await fetch(`http://localhost:8080/api/shipping/calculate?district_id=${districtId}&ward_code=${wardCode}&weight=500`, {
+            method: "POST"
+        });
+        const data = await response.json();
+        
+        currentShippingFee = data.shipping_fee || 0;
+        document.getElementById("shipping-fee-display").innerText = currentShippingFee.toLocaleString();
+        
+        // Cập nhật: Gọi lại hàm loadCartUI để vẽ lại tổng tiền đã bao gồm phí ship
+        loadCartUI(); 
+    } catch (error) {
+        console.error("Lỗi tính phí ship:", error);
+    }
+}
+
+// Khởi chạy load tỉnh thành khi trang web load xong
+document.addEventListener("DOMContentLoaded", () => {
+    loadProvinces();
+});

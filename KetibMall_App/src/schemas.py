@@ -23,7 +23,10 @@ class OrderItemCreate(BaseModel):
 class OrderCreate(BaseModel):
     user_id: int
     items: List[OrderItemCreate]
-
+    shipping_address: Optional[str] = None
+    district_id: Optional[int] = None
+    ward_code: Optional[str] = None
+    shipping_fee: Optional[int] = 0
 # ==========================================
 # 2. DTO CHO AUTH & USER (GIỮ NGUYÊN)
 # ==========================================

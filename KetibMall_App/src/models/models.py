@@ -39,6 +39,10 @@ class Order(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     status = Column(String, default="PENDING")
     owner = relationship("User", back_populates="orders")
+    shipping_address = Column(String, nullable=True)
+    district_id = Column(Integer, nullable=True)
+    ward_code = Column(String, nullable=True)
+    shipping_fee = Column(Integer, default=0)
     items = relationship("OrderItem", back_populates="order")
 
 class OrderItem(Base):

@@ -63,7 +63,15 @@ def create_order(
         raise HTTPException(status_code=500, detail="May chu chua duoc cau hinh thanh toan.")
 
     order_id = f"DH{str(uuid.uuid4().int)[:5]}"
-    new_order = models.Order(id=order_id, user_id=current_user.id, status="PENDING")
+    new_order = models.Order(
+        id=order_id,
+        user_id=current_user.id,
+        status="PENDING",
+        shipping_address=order.shipping_address, # THÊM MỚI
+        district_id=order.district_id,           # THÊM MỚI
+        ward_code=order.ward_code,               # THÊM MỚI
+        shipping_fee=order.shipping_fee
+    )
     db.add(new_order)
 
     items_for_mq = []
@@ -97,6 +105,18 @@ def create_order(
                 'quantity': item.quantity,
             })
 
+        if order.shipping_fee and order.shipping_fee > 0:
+            total_amount += order.shipping_fee
+            line_items.append({
+                'price_data': {
+                    'currency': 'vnd',
+                    'product_data': {'name': "Phí vận chuyển (Giao Hàng Nhanh)"},
+                    'unit_amount': order.shipping_fee,
+                },
+                'quantity': 1,
+            })
+
+            
         # Kiểm tra tổng tiền tối thiểu (Lỗi 0.42$ bạn gặp trước đó)
         if total_amount < MIN_PAYMENT_AMOUNT:
             db.rollback()

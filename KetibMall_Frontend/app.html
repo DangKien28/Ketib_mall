@@ -39,7 +39,7 @@
                 <div id="user-display" class="flex items-center gap-4"></div>
                 
                 <button onclick="toggleCart()" class="relative p-2 text-slate-600">
-                    <span class="material-symbols-outlined">Giỏ hàng của tôi</span>
+                    <span class="material-symbols-outlined">shopping_cart</span>
                     <span id="cart-count" class="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full">0</span>
                 </button>
             </div>
@@ -59,34 +59,66 @@
             </div>
         </div>
         <h2 class="text-3xl font-bold text-gray-800 mb-8">Sản phẩm nổi bật</h2>
-    <section id="section-available" class="mb-16">
-        <div class="flex items-center gap-3 mb-8">
-            <span class="material-symbols-outlined text-green-500">check_circle</span>
-            <h1 class="text-3xl font-extrabold text-slate-900">Sản phẩm sẵn có</h1>
-        </div>
-        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        
+        <section id="section-available" class="mb-16">
+            <div class="flex items-center gap-3 mb-8">
+                <span class="material-symbols-outlined text-green-500">check_circle</span>
+                <h1 class="text-3xl font-extrabold text-slate-900">Sản phẩm sẵn có</h1>
             </div>
-    </section>
-
-    <section id="section-outofstock">
-        <div class="flex items-center gap-3 mb-8 border-t border-slate-200 pt-12">
-            <span class="material-symbols-outlined text-slate-400">inventory_2</span>
-            <h2 class="text-2xl font-bold text-slate-500">Sản phẩm tạm hết hàng</h2>
-        </div>
-        <div id="product-grid-out" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             </div>
-    </section>
-</main>
+        </section>
 
-    <div id="cart-sidebar" class="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-[60] transform translate-x-full transition-transform duration-300 p-6 flex flex-col border-l border-slate-100">
-        <div class="flex items-center justify-between mb-8">
+        <section id="section-outofstock">
+            <div class="flex items-center gap-3 mb-8 border-t border-slate-200 pt-12">
+                <span class="material-symbols-outlined text-slate-400">inventory_2</span>
+                <h2 class="text-2xl font-bold text-slate-500">Sản phẩm tạm hết hàng</h2>
+            </div>
+            <div id="product-grid-out" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            </div>
+        </section>
+    </main>
+
+    <div id="cart-sidebar" class="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-[60] transform translate-x-full transition-transform duration-300 p-6 flex flex-col border-l border-slate-100">
+        <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold">Giỏ hàng</h2>
             <button onclick="toggleCart()"><span class="material-symbols-outlined">close</span></button>
         </div>
-        <div id="cart-items" class="flex-1 overflow-y-auto space-y-4"></div>
-        <div class="pt-6 border-t border-slate-100">
-            <div class="flex justify-between mb-6">
-                <span class="text-slate-500">Tổng cộng:</span>
+        
+        <div id="cart-items" class="flex-1 overflow-y-auto space-y-4 mb-4"></div>
+        
+        <div class="py-4 border-t border-slate-100 space-y-3">
+            <h3 class="font-semibold text-sm text-gray-700 flex items-center gap-1">
+                <span class="material-symbols-outlined text-base">location_on</span> Giao hàng đến:
+            </h3>
+            
+            <input type="text" id="shipping-address" placeholder="Số nhà, Tên đường..." 
+                   class="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-gray-50 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+            
+            <div class="flex flex-col gap-2 text-sm">
+                <select id="province-select" onchange="loadDistricts()" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none focus:ring-blue-500">
+                    <option value="">-- Chọn Tỉnh/Thành --</option>
+                </select>
+                
+                <div class="flex gap-2">
+                    <select id="district-select" onchange="loadWards()" disabled class="w-1/2 border border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none disabled:bg-gray-200">
+                        <option value="">-- Quận/Huyện --</option>
+                    </select>
+                    
+                    <select id="ward-select" onchange="calculateShipping()" disabled class="w-1/2 border border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none disabled:bg-gray-200">
+                        <option value="">-- Phường/Xã --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-between text-sm font-semibold text-gray-600 mt-2">
+                <span>Phí vận chuyển:</span>
+                <span class="text-red-500"><span id="shipping-fee-display">0</span> đ</span>
+            </div>
+        </div>
+        <div class="pt-4 border-t border-slate-100">
+            <div class="flex justify-between mb-4">
+                <span class="text-slate-500 font-medium">Tổng thanh toán:</span>
                 <span id="cart-total" class="font-bold text-2xl text-primary">0đ</span>
             </div>
             <button id="checkout-btn" class="w-full py-4 bg-primary text-white font-bold rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/20">
