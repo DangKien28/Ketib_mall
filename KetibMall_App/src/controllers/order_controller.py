@@ -9,6 +9,7 @@ from src.models import database, models
 from src import schemas
 from src.dependencies import get_current_user, get_admin_user
 from src.integration.publisher.publisher import send_order_event, send_order_cancel_event
+from src.controllers.shipping_controller import create_ghn_order_internal
 
 # Thiết lập ghi nhật ký (Log) để theo dõi trong Docker
 logging.basicConfig(level=logging.INFO)
@@ -165,13 +166,32 @@ async def stripe_webhook(request: Request, db: Session = Depends(database.get_db
         session = event['data']['object']
         order_id = session.get("client_reference_id")
         
+        # Truy vấn lấy đơn hàng, thông tin User và các Items
         order = db.query(models.Order).filter(models.Order.id == order_id).first()
         if order and order.status == "PENDING":
             order.status = "PAID"
+            
+            # --- BẮT ĐẦU ĐOẠN CODE THÊM MỚI ---
+            user_info = db.query(models.User).filter(models.User.id == order.user_id).first()
+            
+            # Gọi hàm tạo đơn trên GHN
+            ghn_response = create_ghn_order_internal(order, user_info, order.items)
+            
+            # Kiểm tra nếu tạo thành công thì lưu mã vận đơn lại
+            if ghn_response and ghn_response.get("code") == 200:
+                order.ghn_order_code = ghn_response["data"]["order_code"]
+                logger.info(f"✅ Đã tạo đơn GHN thành công. Mã vận đơn: {order.ghn_order_code}")
+            else:
+                error_msg = ghn_response.get('message') if ghn_response else "Unknown error"
+                logger.error(f"❌ Lỗi tạo đơn GHN cho Order {order_id}: {error_msg}")
+            # --- KẾT THÚC ĐOẠN CODE THÊM MỚI ---
+
             db.commit()
             logger.info(f"✅ Don hang {order_id} da chuyen sang PAID.")
 
     return {"status": "success"}
+
+
 
 # ==========================================
 # 3. ADMIN API (GIU NGUYEN LOGIC CU)
@@ -180,7 +200,13 @@ async def stripe_webhook(request: Request, db: Session = Depends(database.get_db
 @router.get("/")
 def get_all_orders(db: Session = Depends(database.get_db), admin_user: models.User = Depends(get_admin_user)):
     orders = db.query(models.Order).order_by(models.Order.id.desc()).all()
-    return [{"id": o.id, "user_id": o.user_id, "status": o.status, "items_count": len(o.items)} for o in orders]
+    return [{
+        "id": o.id, 
+        "user_id": o.user_id, 
+        "status": o.status, 
+        "items_count": len(o.items),
+        "ghn_order_code": o.ghn_order_code
+    } for o in orders]
 
 @router.put("/{order_id}/status")
 def update_order_status(order_id: str, status_data: schemas.OrderStatusUpdate, db: Session = Depends(database.get_db), admin_user: models.User = Depends(get_admin_user)):

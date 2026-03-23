@@ -44,6 +44,7 @@ class Order(Base):
     ward_code = Column(String, nullable=True)
     shipping_fee = Column(Integer, default=0)
     items = relationship("OrderItem", back_populates="order")
+    ghn_order_code = Column(String, nullable=True)
 
 class OrderItem(Base):
     __tablename__ = "order_items"

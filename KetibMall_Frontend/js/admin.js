@@ -219,7 +219,7 @@ if (importForm) {
 async function loadOrders() {
     const tbody = document.getElementById('order-list');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">Đang tải đơn hàng...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400 italic">Đang tải đơn hàng...</td></tr>';
 
     const token = localStorage.getItem('token');
     try {
@@ -231,7 +231,7 @@ async function loadOrders() {
         const orders = await response.json();
 
         if (orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Chưa có đơn hàng nào trong hệ thống.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Chưa có đơn hàng nào trong hệ thống.</td></tr>';
             return;
         }
 
@@ -245,12 +245,27 @@ async function loadOrders() {
         };
 
         orders.forEach(o => {
+            orders.forEach(o => {
             const colorClass = statusColors[o.status] || 'bg-gray-100 text-gray-800';
+            
+            // --- XỬ LÝ MÃ GHN: Nếu có thì làm thành link, không có thì hiện chữ "Chưa có" ---
+            let ghnCodeDisplay = o.ghn_order_code 
+                ? `<a href="https://donhang.ghn.vn/?order_code=${o.ghn_order_code}" target="_blank" title="Bấm để tra cứu" class="text-blue-600 hover:text-blue-800 hover:underline font-bold flex items-center gap-1">
+                        ${o.ghn_order_code}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                   </a>`
+                : `<span class="text-gray-400 italic text-sm">Chưa có</span>`;
+
             html += `
                 <tr class="hover:bg-slate-50 transition-colors border-b">
                     <td class="px-6 py-4 font-bold text-gray-700">${o.id}</td>
                     <td class="px-6 py-4 font-mono">User #${o.user_id}</td>
                     <td class="px-6 py-4">${o.items_count} mặt hàng</td>
+                    
+                    <td class="px-6 py-4">
+                        ${ghnCodeDisplay}
+                    </td>
+
                     <td class="px-6 py-4">
                         <span class="px-2 py-1 text-xs font-semibold rounded-full ${colorClass}">
                             ${o.status}
@@ -269,6 +284,7 @@ async function loadOrders() {
                     </td>
                 </tr>
             `;
+        });
         });
         tbody.innerHTML = html;
         addLog("[ĐƠN HÀNG] Đã tải mới danh sách đơn mua.");
